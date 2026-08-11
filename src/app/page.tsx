@@ -31,13 +31,14 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="text-lg h-14 px-8" asChild>
-              <Link href="/services">
+            <Button size="lg" className="text-lg h-14 px-8" asChild={false}>
+              <Link href="/services" className="flex items-center">
                 Start Growing Now
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="h-14 px-8 text-lg" asChild>
+
+            <Button size="lg" variant="outline" className="h-14 px-8 text-lg">
               <Link href="/how-it-works">How it Works</Link>
             </Button>
           </div>
@@ -99,7 +100,7 @@ export default function HomePage() {
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
             Join thousands of creators already growing their accounts with MoreFollowers.
           </p>
-          <Button size="lg" className="h-14 px-10 text-lg" asChild>
+          <Button size="lg" className="h-14 px-10 text-lg">
             <Link href="/register">Create Free Account</Link>
           </Button>
         </div>
