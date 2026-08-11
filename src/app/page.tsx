@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { ArrowRight, Instagram, Youtube, Music2, Twitter } from "lucide-react";
+import { ArrowRight, Music2, Play, Users, Hash } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -43,18 +43,18 @@ export default function HomePage() {
           </div>
 
           {/* Platforms */}
-          <div className="flex flex-wrap justify-center gap-6 mt-16 text-muted-foreground">
+          <div className="flex flex-wrap justify-center gap-8 mt-16 text-muted-foreground">
             <div className="flex items-center gap-2">
-              <Instagram className="h-5 w-5" /> Instagram
+              <Users className="h-5 w-5" /> Instagram
             </div>
             <div className="flex items-center gap-2">
               <Music2 className="h-5 w-5" /> TikTok
             </div>
             <div className="flex items-center gap-2">
-              <Youtube className="h-5 w-5" /> YouTube
+              <Play className="h-5 w-5" /> YouTube
             </div>
             <div className="flex items-center gap-2">
-              <Twitter className="h-5 w-5" /> X (Twitter)
+              <Hash className="h-5 w-5" /> X (Twitter)
             </div>
           </div>
         </div>
