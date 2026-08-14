@@ -87,67 +87,67 @@ export default function HomePage() {
             </Link>
           </motion.div>
 
-          {/* ===== PAYMENTS LOGOS (TOP POSITION) ===== */}
+          {/* ===== PAYMENTS LOGOS (BIGGER) ===== */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.4 }}
-            className="max-w-4xl mx-auto"
+            className="max-w-5xl mx-auto"
           >
             <p className="text-sm text-muted-foreground mb-5 font-medium">
               We accept
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-              {/* M-Pesa */}
-              <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 border rounded-full px-4 py-2 shadow-sm">
+              {/* M-Pesa - BIGGER LOGO */}
+              <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 border rounded-full px-5 py-2.5 shadow-sm">
                 <Image
                   src="/payments/mpesa.png"
                   alt="M-Pesa"
-                  width={50}
-                  height={50}
+                  width={70}
+                  height={70}
                   className="object-contain"
                 />
-                <span className="text-sm font-semibold">M-Pesa</span>
+                <span className="text-base font-semibold">M-Pesa</span>
               </div>
 
               {/* Visa */}
-              <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 border rounded-full px-4 py-2 shadow-sm">
-                <div className="w-10 h-6 bg-blue-600 rounded flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">VISA</span>
+              <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 border rounded-full px-5 py-2.5 shadow-sm">
+                <div className="w-12 h-7 bg-blue-600 rounded flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">VISA</span>
                 </div>
-                <span className="text-sm font-semibold">Visa</span>
+                <span className="text-base font-semibold">Visa</span>
               </div>
 
               {/* Mastercard */}
-              <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 border rounded-full px-4 py-2 shadow-sm">
-                <div className="flex -space-x-1.5">
-                  <div className="w-5 h-5 rounded-full bg-red-500"></div>
-                  <div className="w-5 h-5 rounded-full bg-yellow-500"></div>
+              <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 border rounded-full px-5 py-2.5 shadow-sm">
+                <div className="flex -space-x-2">
+                  <div className="w-6 h-6 rounded-full bg-red-500"></div>
+                  <div className="w-6 h-6 rounded-full bg-yellow-500"></div>
                 </div>
-                <span className="text-sm font-semibold">Mastercard</span>
+                <span className="text-base font-semibold">Mastercard</span>
               </div>
 
               {/* PayPal */}
-              <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border rounded-full px-4 py-2 shadow-sm">
-                <span className="text-blue-600 font-bold text-sm">Pay</span>
-                <span className="text-blue-800 font-bold text-sm">Pal</span>
+              <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border rounded-full px-5 py-2.5 shadow-sm">
+                <span className="text-blue-600 font-bold text-base">Pay</span>
+                <span className="text-blue-800 font-bold text-base">Pal</span>
               </div>
 
               {/* Bitcoin */}
-              <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 border rounded-full px-4 py-2 shadow-sm">
-                <span className="text-orange-500 font-bold text-xl">₿</span>
-                <span className="text-sm font-semibold">Bitcoin</span>
+              <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 border rounded-full px-5 py-2.5 shadow-sm">
+                <span className="text-orange-500 font-bold text-2xl">₿</span>
+                <span className="text-base font-semibold">Bitcoin</span>
               </div>
 
               {/* USDT */}
-              <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 border rounded-full px-4 py-2 shadow-sm">
-                <span className="text-green-600 font-bold text-sm">USDT</span>
+              <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 border rounded-full px-5 py-2.5 shadow-sm">
+                <span className="text-green-600 font-bold text-base">USDT</span>
               </div>
 
               {/* BNB */}
-              <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 border rounded-full px-4 py-2 shadow-sm">
-                <span className="text-yellow-500 font-bold text-sm">BNB</span>
+              <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 border rounded-full px-5 py-2.5 shadow-sm">
+                <span className="text-yellow-500 font-bold text-base">BNB</span>
               </div>
             </div>
           </motion.div>
