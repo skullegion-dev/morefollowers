@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -13,7 +15,6 @@ import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Link from "next/link";
 import { motion } from "framer-motion";
 
 export default function LoginPage() {
@@ -26,6 +27,11 @@ export default function LoginPage() {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth) {
+      setError("Firebase is not configured correctly");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -37,29 +43,39 @@ export default function LoginPage() {
       }
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogle = async () => {
+    if (!auth) {
+      setError("Firebase is not configured correctly");
+      return;
+    }
+
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Google sign-in failed");
     }
   };
 
   const handleApple = async () => {
+    if (!auth) {
+      setError("Firebase is not configured correctly");
+      return;
+    }
+
     try {
       const provider = new OAuthProvider("apple.com");
       await signInWithPopup(auth, provider);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Apple sign-in failed");
     }
   };
 
@@ -81,7 +97,6 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {/* Social buttons */}
             <Button
               variant="outline"
               className="w-full h-12"
@@ -125,12 +140,14 @@ export default function LoginPage() {
                 required
               />
 
-              {error && (
-                <p className="text-sm text-red-500">{error}</p>
-              )}
+              {error && <p className="text-sm text-red-500">{error}</p>}
 
               <Button type="submit" className="w-full h-12" disabled={loading}>
-                {loading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
+                {loading
+                  ? "Please wait..."
+                  : isLogin
+                  ? "Sign In"
+                  : "Create Account"}
               </Button>
             </form>
 
