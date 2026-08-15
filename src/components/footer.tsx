@@ -1,23 +1,63 @@
 import Link from "next/link";
+import { Facebook, Instagram, Youtube, Music2, Hash } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="border-t py-12">
-      <div className="container">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="text-center md:text-left">
-            <p className="font-bold text-lg">MoreFollowers</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Get more followers on Instagram, TikTok, YouTube & more
+    <footer className="border-t bg-muted/30">
+      <div className="container mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* Brand */}
+          <div className="space-y-4">
+            <Link href="/" className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              MoreFollowers
+            </Link>
+            <p className="text-sm text-muted-foreground">
+              Get more followers, likes and views on Instagram, TikTok, YouTube, Facebook & X.
             </p>
           </div>
-          <div className="flex gap-6 text-sm">
-            <Link href="/terms" className="hover:underline">Terms</Link>
-            <Link href="/privacy" className="hover:underline">Privacy</Link>
-            <Link href="/support" className="hover:underline">Support</Link>
+
+          {/* Links */}
+          <div>
+            <h4 className="font-semibold mb-4">Company</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link href="/services" className="hover:text-primary">Services</Link></li>
+              <li><Link href="/how-it-works" className="hover:text-primary">How it Works</Link></li>
+              <li><Link href="/faq" className="hover:text-primary">FAQ</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-4">Legal</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link href="/terms" className="hover:text-primary">Terms of Service</Link></li>
+              <li><Link href="/privacy" className="hover:text-primary">Privacy Policy</Link></li>
+            </ul>
+          </div>
+
+          {/* Social */}
+          <div>
+            <h4 className="font-semibold mb-4">Follow Us</h4>
+            <div className="flex gap-3">
+              <Link href="#" className="p-2 rounded-full bg-muted hover:bg-primary hover:text-white transition">
+                <Instagram className="h-5 w-5" />
+              </Link>
+              <Link href="#" className="p-2 rounded-full bg-muted hover:bg-primary hover:text-white transition">
+                <Music2 className="h-5 w-5" />
+              </Link>
+              <Link href="#" className="p-2 rounded-full bg-muted hover:bg-primary hover:text-white transition">
+                <Youtube className="h-5 w-5" />
+              </Link>
+              <Link href="#" className="p-2 rounded-full bg-muted hover:bg-primary hover:text-white transition">
+                <Hash className="h-5 w-5" />
+              </Link>
+              <Link href="#" className="p-2 rounded-full bg-muted hover:bg-primary hover:text-white transition">
+                <Facebook className="h-5 w-5" />
+              </Link>
+            </div>
           </div>
         </div>
-        <div className="mt-8 text-center text-sm text-muted-foreground">
+
+        <div className="mt-10 pt-6 border-t text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} MoreFollowers. All rights reserved.
         </div>
       </div>

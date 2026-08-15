@@ -10,7 +10,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "MoreFollowers – Get More Followers Instantly",
-  description: "Buy real followers, likes & views for Instagram, TikTok, YouTube & more. Pay with M-Pesa, Stripe, PayPal or Crypto.",
+  description:
+    "Buy real followers, likes & views for Instagram, TikTok, YouTube, Facebook & more. Pay with M-Pesa, Stripe, PayPal or Crypto.",
 };
 
 export default function RootLayout({
@@ -20,12 +21,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${inter.className} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
-            <Navbar />
-            <main>{children}</main>
-            <Footer />
+            <div className="min-h-screen flex flex-col">
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
           </AuthProvider>
         </ThemeProvider>
       </body>
