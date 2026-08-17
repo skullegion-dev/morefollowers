@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Wallet, ShoppingCart, History, LogOut } from "lucide-react";
+import { formatUSD } from "@/lib/currency";
 
 export default function DashboardPage() {
   const { user, loading, logout } = useAuth();
@@ -33,13 +34,16 @@ export default function DashboardPage() {
     router.push("/");
   };
 
+  // Temporary balance (we will connect real balance later)
+  const balance = 0;
+
   return (
     <div className="container mx-auto px-4 py-10">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, {user.email || user.displayName || "User"}
+            Welcome back, {user.displayName || user.email || "User"}
           </p>
         </div>
         <Button variant="outline" onClick={handleLogout}>
@@ -49,7 +53,11 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        {/* Wallet Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <Card className="bg-gradient-to-br from-blue-600 to-purple-600 text-white border-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -58,12 +66,20 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">KES 0.00</p>
-              <p className="text-sm opacity-80 mt-1">Ready to add funds</p>
+              <p className="text-3xl font-bold">{formatUSD(balance)}</p>
+              <p className="text-sm opacity-80 mt-1">Available balance</p>
+              <Button
+                variant="secondary"
+                className="mt-4 w-full"
+                onClick={() => router.push("/dashboard/add-funds")}
+              >
+                Add Funds
+              </Button>
             </CardContent>
           </Card>
         </motion.div>
 
+        {/* Place Order */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -78,6 +94,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Order History */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
