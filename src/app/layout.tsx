@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { AuthProvider } from "@/context/AuthContext";
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,7 +32,11 @@ export default function RootLayout({
             </div>
           </AuthProvider>
         </ThemeProvider>
+
+        {/* Google Analytics - Replace G-XXXXXXXXXX with your real ID */}
+        <GoogleAnalytics gaId="G-YDZBB8LN51" />
       </body>
     </html>
   );
 }
+
