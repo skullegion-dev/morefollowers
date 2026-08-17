@@ -27,8 +27,9 @@ export default function LoginPage() {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!auth) {
-      setError("Firebase is not configured correctly");
+      setError("Firebase is not configured correctly. Please check environment variables.");
       return;
     }
 
@@ -51,7 +52,7 @@ export default function LoginPage() {
 
   const handleGoogle = async () => {
     if (!auth) {
-      setError("Firebase is not configured correctly");
+      setError("Firebase is not configured correctly. Please check environment variables.");
       return;
     }
 
@@ -66,7 +67,7 @@ export default function LoginPage() {
 
   const handleApple = async () => {
     if (!auth) {
-      setError("Firebase is not configured correctly");
+      setError("Firebase is not configured correctly. Please check environment variables.");
       return;
     }
 
@@ -140,7 +141,9 @@ export default function LoginPage() {
                 required
               />
 
-              {error && <p className="text-sm text-red-500">{error}</p>}
+              {error && (
+                <p className="text-sm text-red-500 text-center">{error}</p>
+              )}
 
               <Button type="submit" className="w-full h-12" disabled={loading}>
                 {loading

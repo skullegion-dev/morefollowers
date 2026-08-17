@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { getAuth, Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,12 +10,22 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Only initialize if we have a valid API key
-const app =
-  getApps().length === 0 && firebaseConfig.apiKey
-    ? initializeApp(firebaseConfig)
-    : getApps().length
-    ? getApp()
-    : null;
+let app: FirebaseApp | undefined;
+let auth: Auth | null = null;
 
-export const auth = app ? getAuth(app) : null;
+try {
+  if (
+    firebaseConfig.apiKey &&
+    firebaseConfig.authDomain &&
+    firebaseConfig.projectId
+  ) {
+    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    auth = getAuth(app);
+  } else {
+    console.error("Firebase config is missing. Check your environment variables.");
+  }
+} catch (error) {
+  console.error("Firebase initialization error:", error);
+}
+
+export { app, auth };
