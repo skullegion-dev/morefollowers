@@ -90,9 +90,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Timestamp MUST be Africa/Nairobi (UTC+3) — critical for STK prompt to appear
     const timestamp = new Date()
-      .toISOString()
-      .replace(/[^0-9]/g, "")
+      .toLocaleString("sv-SE", { timeZone: "Africa/Nairobi" })
+      .replace(/[-: ]/g, "")
       .slice(0, 14);
 
     const password = Buffer.from(shortcode + passkey + timestamp).toString(
