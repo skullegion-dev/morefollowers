@@ -17,7 +17,7 @@ export function formatKES(amount: number): string {
 }
 
 export function usdToKes(usd: number): number {
-  return Math.ceil(usd * USD_TO_KES); // Round up so you never lose money
+  return Math.ceil(usd * USD_TO_KES);
 }
 
 export function kesToUsd(kes: number): number {

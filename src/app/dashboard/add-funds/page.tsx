@@ -6,19 +6,21 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { formatUSD, formatKES, usdToKes } from "@/lib/currency";
+import { formatUSD, formatKES, usdToKes, kesToUsd } from "@/lib/currency";
 import { ArrowLeft, Smartphone, CreditCard, Bitcoin } from "lucide-react";
 import Image from "next/image";
 
-const PRESET_AMOUNTS = [5, 10, 20, 50, 100, 200];
+const PRESET_USD = [5, 10, 20, 50, 100, 200];
+const PRESET_KES = [500, 1000, 2000, 5000, 10000, 20000];
 
 export default function AddFundsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const [amount, setAmount] = useState<number>(10);
+  const [method, setMethod] = useState<"stripe" | "paypal" | "crypto" | "mpesa">("stripe");
+  const [amountUSD, setAmountUSD] = useState<number>(10);
+  const [amountKES, setAmountKES] = useState<number>(1000);
   const [customAmount, setCustomAmount] = useState("");
-  const [method, setMethod] = useState<"mpesa" | "stripe" | "paypal" | "crypto">("mpesa");
   const [phone, setPhone] = useState("");
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState("");
@@ -37,25 +39,38 @@ export default function AddFundsPage() {
     );
   }
 
-  const selectedAmount = customAmount ? Number(customAmount) : amount;
-  const kesAmount = usdToKes(selectedAmount);
+  // Calculate final amounts
+  const isMpesa = method === "mpesa";
+  const finalKES = isMpesa
+    ? customAmount
+      ? Number(customAmount)
+      : amountKES
+    : usdToKes(customAmount ? Number(customAmount) : amountUSD);
+
+  const finalUSD = isMpesa
+    ? kesToUsd(finalKES)
+    : customAmount
+    ? Number(customAmount)
+    : amountUSD;
 
   const handlePreset = (value: number) => {
-    setAmount(value);
+    if (isMpesa) {
+      setAmountKES(value);
+    } else {
+      setAmountUSD(value);
+    }
     setCustomAmount("");
   };
 
   const handlePay = async () => {
-    if (selectedAmount < 1) {
-      setMessage("Minimum amount is $1");
+    if (finalUSD < 1) {
+      setMessage("Minimum amount is $1.00");
       return;
     }
 
-    if (method === "mpesa") {
-      if (!phone || phone.length < 9) {
-        setMessage("Please enter a valid M-Pesa phone number");
-        return;
-      }
+    if (isMpesa && (!phone || phone.length < 9)) {
+      setMessage("Please enter a valid M-Pesa phone number");
+      return;
     }
 
     setProcessing(true);
@@ -67,7 +82,8 @@ export default function AddFundsPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            amountUSD: selectedAmount,
+            amountUSD: finalUSD,
+            amountKES: finalKES,
             phone: phone,
             userId: user.uid,
           }),
@@ -77,43 +93,36 @@ export default function AddFundsPage() {
 
         if (data.success) {
           setMessage(
-            "STK Push sent successfully! Check your phone and enter your M-Pesa PIN."
+            "STK Push sent! Check your phone and enter your M-Pesa PIN."
           );
         } else {
-          setMessage(data.error || "Failed to initiate M-Pesa payment");
+          setMessage(data.error || "M-Pesa payment failed");
         }
       }
 
       if (method === "stripe") {
-        setMessage("Stripe will be added next...");
+        setMessage("Stripe will be connected next...");
       }
       if (method === "paypal") {
-        setMessage("PayPal will be added next...");
+        setMessage("PayPal will be connected next...");
       }
       if (method === "crypto") {
-        setMessage("Crypto will be added next...");
+        setMessage("Crypto will be connected next...");
       }
-    } catch (error) {
-      setMessage("Network error. Please try again.");
+    } catch (error: any) {
+      console.error(error);
+      setMessage(error.message || "Network error. Please try again.");
     } finally {
       setProcessing(false);
     }
   };
 
-  // Dynamic button text
   const getButtonText = () => {
     if (processing) return "Processing...";
-
-    if (method === "mpesa") {
-      return `Pay ${formatKES(kesAmount)} with M-Pesa`;
-    }
-    if (method === "stripe") {
-      return `Pay ${formatUSD(selectedAmount)} with Card`;
-    }
-    if (method === "paypal") {
-      return `Pay ${formatUSD(selectedAmount)} with PayPal`;
-    }
-    return `Pay ${formatUSD(selectedAmount)} with Crypto`;
+    if (method === "mpesa") return `Pay ${formatKES(finalKES)} with M-Pesa`;
+    if (method === "stripe") return `Pay ${formatUSD(finalUSD)} with Card`;
+    if (method === "paypal") return `Pay ${formatUSD(finalUSD)} with PayPal`;
+    return `Pay ${formatUSD(finalUSD)} with Crypto`;
   };
 
   return (
@@ -129,94 +138,31 @@ export default function AddFundsPage() {
 
       <h1 className="text-3xl font-bold mb-2">Add Funds</h1>
       <p className="text-muted-foreground mb-8">
-        Top up your wallet in USD
+        Top up your wallet
       </p>
 
-      {/* Amount Selection */}
+      {/* Payment Methods - New Order */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Select Amount (USD)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-            {PRESET_AMOUNTS.map((value) => (
-              <Button
-                key={value}
-                variant={amount === value && !customAmount ? "default" : "outline"}
-                onClick={() => handlePreset(value)}
-              >
-                ${value}
-              </Button>
-            ))}
-          </div>
-
-          <div>
-            <label className="text-sm text-muted-foreground">Custom amount (USD)</label>
-            <Input
-              type="number"
-              placeholder="Enter amount in USD"
-              value={customAmount}
-              onChange={(e) => setCustomAmount(e.target.value)}
-              min="1"
-              step="0.01"
-            />
-          </div>
-
-          <div className="bg-muted p-4 rounded-lg">
-            <p className="text-sm">
-              You will receive: <strong>{formatUSD(selectedAmount)}</strong>
-            </p>
-            {method === "mpesa" && (
-              <p className="text-sm text-muted-foreground mt-1">
-                You will pay: <strong>{formatKES(kesAmount)}</strong>
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Payment Methods */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Payment Method</CardTitle>
+          <CardTitle>Select Payment Method</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* M-Pesa */}
-          <div
-            className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition ${
-              method === "mpesa" ? "border-primary bg-primary/5" : ""
-            }`}
-            onClick={() => setMethod("mpesa")}
-          >
-            <div className="w-10 h-10 relative flex items-center justify-center">
-              <Image
-                src="/payments/mpesa.png"
-                alt="M-Pesa"
-                width={40}
-                height={40}
-                className="object-contain"
-              />
-            </div>
-            <div className="flex-1">
-              <p className="font-medium">M-Pesa</p>
-              <p className="text-sm text-muted-foreground">Kenya only • Instant</p>
-            </div>
-            <Smartphone className="h-5 w-5 text-muted-foreground" />
-          </div>
-
           {/* Stripe */}
           <div
             className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition ${
               method === "stripe" ? "border-primary bg-primary/5" : ""
             }`}
-            onClick={() => setMethod("stripe")}
+            onClick={() => {
+              setMethod("stripe");
+              setCustomAmount("");
+            }}
           >
             <div className="w-10 h-10 bg-indigo-600 rounded flex items-center justify-center text-white text-xs font-bold">
               Card
             </div>
             <div className="flex-1">
               <p className="font-medium">Credit / Debit Card</p>
-              <p className="text-sm text-muted-foreground">Visa, Mastercard (Stripe)</p>
+              <p className="text-sm text-muted-foreground">Visa, Mastercard</p>
             </div>
             <CreditCard className="h-5 w-5 text-muted-foreground" />
           </div>
@@ -226,9 +172,12 @@ export default function AddFundsPage() {
             className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition ${
               method === "paypal" ? "border-primary bg-primary/5" : ""
             }`}
-            onClick={() => setMethod("paypal")}
+            onClick={() => {
+              setMethod("paypal");
+              setCustomAmount("");
+            }}
           >
-            <div className="w-10 h-10 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 flex items-center justify-center font-bold text-sm">
               <span className="text-blue-600">Pay</span>
               <span className="text-blue-800">Pal</span>
             </div>
@@ -243,7 +192,10 @@ export default function AddFundsPage() {
             className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition ${
               method === "crypto" ? "border-primary bg-primary/5" : ""
             }`}
-            onClick={() => setMethod("crypto")}
+            onClick={() => {
+              setMethod("crypto");
+              setCustomAmount("");
+            }}
           >
             <div className="w-10 h-10 flex items-center justify-center">
               <Bitcoin className="h-6 w-6 text-orange-500" />
@@ -255,17 +207,99 @@ export default function AddFundsPage() {
               </p>
             </div>
           </div>
+
+          {/* M-Pesa - Last */}
+          <div
+            className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition ${
+              method === "mpesa" ? "border-primary bg-primary/5" : ""
+            }`}
+            onClick={() => {
+              setMethod("mpesa");
+              setCustomAmount("");
+            }}
+          >
+            <div className="w-10 h-10 relative flex items-center justify-center">
+              <Image
+                src="/payments/mpesa.png"
+                alt="M-Pesa"
+                width={40}
+                height={40}
+                className="object-contain"
+              />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium">M-Pesa</p>
+              <p className="text-sm text-muted-foreground">Instant mobile money</p>
+            </div>
+            <Smartphone className="h-5 w-5 text-muted-foreground" />
+          </div>
         </CardContent>
       </Card>
 
-      {/* M-Pesa Phone Input */}
-      {method === "mpesa" && (
+      {/* Amount Selection */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>
+            {isMpesa ? "Enter Amount (KES)" : "Enter Amount (USD)"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {(isMpesa ? PRESET_KES : PRESET_USD).map((value) => (
+              <Button
+                key={value}
+                variant={
+                  (isMpesa ? amountKES : amountUSD) === value && !customAmount
+                    ? "default"
+                    : "outline"
+                }
+                onClick={() => handlePreset(value)}
+              >
+                {isMpesa ? `Ksh ${value.toLocaleString()}` : `$${value}`}
+              </Button>
+            ))}
+          </div>
+
+          <div>
+            <label className="text-sm text-muted-foreground">
+              Custom amount ({isMpesa ? "KES" : "USD"})
+            </label>
+            <Input
+              type="number"
+              placeholder={isMpesa ? "Enter amount in KES" : "Enter amount in USD"}
+              value={customAmount}
+              onChange={(e) => setCustomAmount(e.target.value)}
+              min="1"
+            />
+          </div>
+
+          <div className="bg-muted p-4 rounded-lg space-y-1">
+            {isMpesa ? (
+              <>
+                <p className="text-sm">
+                  You will pay: <strong>{formatKES(finalKES)}</strong>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  You will receive: <strong>{formatUSD(finalUSD)}</strong>
+                </p>
+              </>
+            ) : (
+              <p className="text-sm">
+                You will receive: <strong>{formatUSD(finalUSD)}</strong>
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* M-Pesa Phone */}
+      {isMpesa && (
         <Card className="mb-6">
           <CardContent className="pt-6">
             <label className="text-sm font-medium">M-Pesa Phone Number</label>
             <Input
               type="tel"
-              placeholder="0712345678 or 254712345678"
+              placeholder="0712345678"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="mt-2"
@@ -280,9 +314,10 @@ export default function AddFundsPage() {
       {message && (
         <div
           className={`mb-6 p-4 rounded-lg text-sm text-center ${
-            message.includes("successfully")
+            message.toLowerCase().includes("success") ||
+            message.toLowerCase().includes("sent")
               ? "bg-green-50 text-green-700 dark:bg-green-900/20"
-              : "bg-muted"
+              : "bg-red-50 text-red-700 dark:bg-red-900/20"
           }`}
         >
           {message}
@@ -292,7 +327,7 @@ export default function AddFundsPage() {
       <Button
         className="w-full h-12 text-base"
         onClick={handlePay}
-        disabled={processing || selectedAmount < 1}
+        disabled={processing || finalUSD < 1}
       >
         {getButtonText()}
       </Button>
