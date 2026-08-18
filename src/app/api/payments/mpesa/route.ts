@@ -4,24 +4,24 @@ import { usdToKes } from "@/lib/currency";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { amountUSD, phone, userId } = body;
+    const { amountUSD, amountKES, phone, userId } = body;
 
-    if (!amountUSD || !phone || !userId) {
+    if (!phone || !userId) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    const amount = Number(amountUSD);
-    if (isNaN(amount) || amount < 0.5) {
+    // Prefer amountKES if provided (from the new UI), otherwise convert from USD
+    let kesAmount = amountKES ? Math.round(Number(amountKES)) : Math.round(usdToKes(Number(amountUSD)));
+
+    if (!kesAmount || kesAmount < 1) {
       return NextResponse.json(
         { success: false, error: "Invalid amount" },
         { status: 400 }
       );
     }
-
-    const kesAmount = Math.round(usdToKes(amount));
 
     // Format phone to 2547XXXXXXXX
     let formattedPhone = phone.toString().replace(/\D/g, "");
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     const consumerKey = process.env.MPESA_CONSUMER_KEY;
     const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
-    const shortcode = process.env.MPESA_SHORTCODE;
+    const shortcode = process.env.MPESA_SHORTCODE; // Your Till Number
     const passkey = process.env.MPESA_PASSKEY;
     const callbackUrl = process.env.MPESA_CALLBACK_URL;
 
@@ -54,13 +54,13 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error:
-            "M-Pesa credentials missing. Add MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_SHORTCODE, MPESA_PASSKEY in Vercel.",
+            "M-Pesa credentials missing. Check environment variables.",
         },
         { status: 500 }
       );
     }
 
-    // LIVE Daraja endpoints
+    // LIVE endpoints
     const tokenUrl =
       "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
     const stkUrl =
@@ -84,18 +84,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Could not get M-Pesa token. Check Consumer Key/Secret.",
+          error: "Could not get M-Pesa access token. Check Consumer Key/Secret.",
         },
         { status: 500 }
       );
     }
 
-    const ts = new Date()
+    const timestamp = new Date()
       .toISOString()
       .replace(/[^0-9]/g, "")
       .slice(0, 14);
-    const pwd = Buffer.from(shortcode + passkey + ts).toString("base64");
 
+    const password = Buffer.from(shortcode + passkey + timestamp).toString(
+      "base64"
+    );
+
+    // IMPORTANT: For Till Number we use CustomerBuyGoodsOnline
     const stkResponse = await fetch(stkUrl, {
       method: "POST",
       headers: {
@@ -104,16 +108,16 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         BusinessShortCode: shortcode,
-        Password: pwd,
-        Timestamp: ts,
-        TransactionType: "CustomerPayBillOnline",
-        Amount: Math.round(kesAmount),
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: "CustomerBuyGoodsOnline", // ← Till Number
+        Amount: kesAmount,
         PartyA: formattedPhone,
         PartyB: shortcode,
         PhoneNumber: formattedPhone,
         CallBackURL: callbackUrl,
         AccountReference: "MoreFollowers",
-        TransactionDesc: "MoreFollowers top-up",
+        TransactionDesc: "MoreFollowers Wallet Top-up",
       }),
     });
 
@@ -123,6 +127,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         checkoutRequestId: stkJson.CheckoutRequestID,
+        merchantRequestId: stkJson.MerchantRequestID,
       });
     }
 
