@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatUSD, formatKES, usdToKes, kesToUsd } from "@/lib/currency";
-import { ArrowLeft, CreditCard, Bitcoin } from "lucide-react";
+import { ArrowLeft, CreditCard, Bitcoin, Wallet } from "lucide-react";
 import Image from "next/image";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const PRESET_USD = [5, 10, 20, 50, 100, 200];
 const PRESET_KES = [50, 100, 200, 300, 500, 1000];
@@ -27,13 +29,45 @@ export default function AddFundsPage() {
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState("");
   const [confirming, setConfirming] = useState(false);
-  const [debugInfo, setDebugInfo] = useState("");
+  const [balance, setBalance] = useState<number>(0);
+  const [balanceHighlight, setBalanceHighlight] = useState(false);
+  const [showBalancePopup, setShowBalancePopup] = useState(false);
+  const [creditedAmount, setCreditedAmount] = useState<number | null>(null);
+
+  const prevBalanceRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
+
+  // Live wallet balance
+  useEffect(() => {
+    if (!user) return;
+
+    const userRef = doc(db, "users", user.uid);
+    const unsubscribe = onSnapshot(userRef, (snap) => {
+      const newBalance = snap.exists() ? Number(snap.data().balance || 0) : 0;
+
+      if (
+        prevBalanceRef.current !== null &&
+        newBalance > prevBalanceRef.current
+      ) {
+        const added = Number((newBalance - prevBalanceRef.current).toFixed(2));
+        setCreditedAmount(added);
+        setBalanceHighlight(true);
+        setShowBalancePopup(true);
+        setTimeout(() => setBalanceHighlight(false), 4000);
+        setTimeout(() => setShowBalancePopup(false), 5000);
+      }
+
+      prevBalanceRef.current = newBalance;
+      setBalance(newBalance);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   if (loading || !user) {
     return (
@@ -66,6 +100,10 @@ export default function AddFundsPage() {
     setCustomAmount("");
   };
 
+  const preventScrollChange = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.currentTarget.blur();
+  };
+
   const handlePay = async () => {
     if (isMpesa && finalKES < 1) {
       setMessage("Minimum M-Pesa amount is Ksh 1");
@@ -85,7 +123,6 @@ export default function AddFundsPage() {
     setProcessing(true);
     setMessage("");
     setConfirming(false);
-    setDebugInfo("");
 
     try {
       if (method === "mpesa") {
@@ -111,7 +148,7 @@ export default function AddFundsPage() {
         if (data.success) {
           setConfirming(true);
           setMessage(
-            "STK Push sent! Enter your M-Pesa PIN on your phone. Confirming payment…"
+            "Confirming payment… Enter your M-Pesa PIN on your phone."
           );
 
           const checkoutRequestId = data.checkoutRequestId;
@@ -131,17 +168,10 @@ export default function AddFundsPage() {
               });
 
               const statusData = await statusRes.json();
-              setDebugInfo(
-                `Check ${attempts}: status=${statusData.status || "?"} | ${
-                  statusData.message ||
-                  statusData.error ||
-                  JSON.stringify(statusData.details || statusData)
-                }`
-              );
 
               if (statusData.status === "completed") {
                 setMessage(
-                  `Payment confirmed! $${Number(statusData.amountUSD).toFixed(2)} has been added to your wallet.`
+                  `Payment confirmed! $${Number(statusData.amountUSD).toFixed(2)} added to your wallet.`
                 );
                 setConfirming(false);
                 return;
@@ -155,7 +185,10 @@ export default function AddFundsPage() {
                 return;
               }
 
-              if (statusData.status === "error" || statusData.status === "not_found") {
+              if (
+                statusData.status === "error" ||
+                statusData.status === "not_found"
+              ) {
                 setMessage(statusData.error || "Could not verify payment.");
                 setConfirming(false);
                 return;
@@ -165,18 +198,16 @@ export default function AddFundsPage() {
                 setTimeout(poll, 5000);
               } else {
                 setMessage(
-                  "Timed out waiting for confirmation. If M-Pesa SMS shows success, tell support your CheckoutRequestID: " +
-                    checkoutRequestId
+                  "Still confirming… If you paid, your balance will update shortly. You can refresh the page."
                 );
                 setConfirming(false);
               }
-            } catch (err: any) {
-              setDebugInfo(`Check ${attempts} failed: ${err?.message || "network error"}`);
+            } catch {
               if (attempts < maxAttempts) {
                 setTimeout(poll, 5000);
               } else {
                 setMessage(
-                  "Could not confirm payment status. Check your dashboard shortly."
+                  "Could not confirm payment status. Check your balance shortly."
                 );
                 setConfirming(false);
               }
@@ -209,7 +240,14 @@ export default function AddFundsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-10 max-w-2xl">
+    <div className="container mx-auto px-4 py-10 max-w-2xl relative">
+      {/* Balance updated popup */}
+      {showBalancePopup && creditedAmount !== null && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg bg-emerald-600 text-white text-sm font-medium animate-in fade-in slide-in-from-top-2">
+          +{formatUSD(creditedAmount)} added to your wallet
+        </div>
+      )}
+
       <Button
         variant="ghost"
         className="mb-6"
@@ -220,7 +258,43 @@ export default function AddFundsPage() {
       </Button>
 
       <h1 className="text-3xl font-bold mb-2">Add Funds</h1>
-      <p className="text-muted-foreground mb-8">Top up your wallet</p>
+      <p className="text-muted-foreground mb-6">Top up your wallet</p>
+
+      {/* Wallet balance at top */}
+      <div
+        className={`mb-8 p-4 rounded-xl border flex items-center justify-between transition-all duration-500 ${
+          balanceHighlight
+            ? "bg-emerald-500/15 border-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.35)]"
+            : "bg-muted/60 border-border"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className={`h-10 w-10 rounded-full flex items-center justify-center ${
+              balanceHighlight
+                ? "bg-emerald-500 text-white"
+                : "bg-primary/10 text-primary"
+            }`}
+          >
+            <Wallet className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Current balance</p>
+            <p
+              className={`text-xl font-bold ${
+                balanceHighlight ? "text-emerald-600 dark:text-emerald-400" : ""
+              }`}
+            >
+              {formatUSD(balance)}
+            </p>
+          </div>
+        </div>
+        {balanceHighlight && (
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            Updated
+          </span>
+        )}
+      </div>
 
       <Card className="mb-6">
         <CardHeader>
@@ -346,6 +420,7 @@ export default function AddFundsPage() {
               placeholder={isMpesa ? "e.g. 50" : "e.g. 5"}
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
+              onWheel={preventScrollChange}
               min="1"
             />
           </div>
@@ -375,32 +450,30 @@ export default function AddFundsPage() {
             <label className="text-sm font-medium">M-Pesa Phone Number</label>
             <Input
               type="tel"
-              placeholder="0712345678"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="mt-2"
+              inputMode="numeric"
+              autoComplete="tel"
             />
+            <p className="text-xs text-muted-foreground mt-2">
+              Example format: <span className="font-medium">0712345678</span>
+            </p>
           </CardContent>
         </Card>
       )}
 
       {message && (
         <div
-          className={`mb-4 p-4 rounded-lg text-sm text-center ${
+          className={`mb-6 p-4 rounded-lg text-sm text-center ${
             message.toLowerCase().includes("confirmed") ||
-            message.toLowerCase().includes("sent") ||
+            message.toLowerCase().includes("confirming") ||
             confirming
               ? "bg-green-50 text-green-700 dark:bg-green-900/20"
               : "bg-red-50 text-red-700 dark:bg-red-900/20"
           }`}
         >
           {message}
-        </div>
-      )}
-
-      {debugInfo && (
-        <div className="mb-6 p-3 rounded-lg text-xs bg-muted text-muted-foreground break-all">
-          {debugInfo}
         </div>
       )}
 
