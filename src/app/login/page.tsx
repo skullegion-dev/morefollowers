@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   GoogleAuthProvider,
   OAuthProvider,
   signInWithPopup,
@@ -24,25 +25,53 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!auth) {
-      setError("Firebase is not configured correctly. Please check environment variables.");
+      setError("Firebase is not configured correctly.");
       return;
     }
 
     setLoading(true);
     setError("");
+    setMessage("");
 
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+        if (!userCredential.user.emailVerified) {
+          setError(
+            "Please verify your email first. Check your inbox for the verification link."
+          );
+          await auth.signOut();
+          return;
+        }
+
+        router.push("/dashboard");
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+        await sendEmailVerification(userCredential.user);
+
+        setMessage(
+          "Account created! A verification link has been sent to your email. Please verify before logging in."
+        );
+
+        await auth.signOut();
+        setIsLogin(true);
       }
-      router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
@@ -52,7 +81,7 @@ export default function LoginPage() {
 
   const handleGoogle = async () => {
     if (!auth) {
-      setError("Firebase is not configured correctly. Please check environment variables.");
+      setError("Firebase is not configured correctly.");
       return;
     }
 
@@ -67,12 +96,15 @@ export default function LoginPage() {
 
   const handleApple = async () => {
     if (!auth) {
-      setError("Firebase is not configured correctly. Please check environment variables.");
+      setError("Firebase is not configured correctly.");
       return;
     }
 
     try {
       const provider = new OAuthProvider("apple.com");
+      provider.addScope("email");
+      provider.addScope("name");
+
       await signInWithPopup(auth, provider);
       router.push("/dashboard");
     } catch (err: any) {
@@ -144,6 +176,9 @@ export default function LoginPage() {
               {error && (
                 <p className="text-sm text-red-500 text-center">{error}</p>
               )}
+              {message && (
+                <p className="text-sm text-green-600 text-center">{message}</p>
+              )}
 
               <Button type="submit" className="w-full h-12" disabled={loading}>
                 {loading
@@ -158,7 +193,11 @@ export default function LoginPage() {
               {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
               <button
                 type="button"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError("");
+                  setMessage("");
+                }}
                 className="text-primary font-medium hover:underline"
               >
                 {isLogin ? "Sign up" : "Sign in"}
