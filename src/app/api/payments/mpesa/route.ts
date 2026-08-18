@@ -45,7 +45,8 @@ export async function POST(req: NextRequest) {
 
     const consumerKey = process.env.MPESA_CONSUMER_KEY;
     const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
-    const shortcode = process.env.MPESA_SHORTCODE; // Your Till Number
+    const shortcode = process.env.MPESA_SHORTCODE; // 3566323 (Daraja Short Code)
+    const tillNumber = process.env.MPESA_TILL_NUMBER || shortcode; // 6723649 (customer Till)
     const passkey = process.env.MPESA_PASSKEY;
     const callbackUrl = process.env.MPESA_CALLBACK_URL;
 
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Timestamp MUST be Africa/Nairobi (UTC+3) — critical for STK prompt to appear
+    // Timestamp MUST be Africa/Nairobi (UTC+3)
     const timestamp = new Date()
       .toLocaleString("sv-SE", { timeZone: "Africa/Nairobi" })
       .replace(/[-: ]/g, "")
@@ -100,7 +101,9 @@ export async function POST(req: NextRequest) {
       "base64"
     );
 
-    // IMPORTANT: For Till Number we use CustomerBuyGoodsOnline
+    // IMPORTANT:
+    // BusinessShortCode = Daraja Short Code (3566323)
+    // PartyB            = actual Till Number (6723649)  ← as instructed by Safaricom
     const stkResponse = await fetch(stkUrl, {
       method: "POST",
       headers: {
@@ -111,10 +114,10 @@ export async function POST(req: NextRequest) {
         BusinessShortCode: shortcode,
         Password: password,
         Timestamp: timestamp,
-        TransactionType: "CustomerBuyGoodsOnline", // ← Till Number
+        TransactionType: "CustomerBuyGoodsOnline",
         Amount: kesAmount,
         PartyA: formattedPhone,
-        PartyB: shortcode,
+        PartyB: tillNumber,                    // ← Till Number (6723649)
         PhoneNumber: formattedPhone,
         CallBackURL: callbackUrl,
         AccountReference: "MoreFollowers",
