@@ -15,7 +15,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Prefer amountKES if provided (from the new UI), otherwise convert from USD
     let kesAmount = amountKES
       ? Math.round(Number(amountKES))
       : Math.round(usdToKes(Number(amountUSD)));
@@ -27,13 +26,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Store the exact USD amount we will credit later
     const creditUSD =
       amountUSD !== undefined && amountUSD !== null
         ? Number(Number(amountUSD).toFixed(2))
         : Number((kesAmount / 129.5).toFixed(2));
 
-    // Format phone to 2547XXXXXXXX
     let formattedPhone = phone.toString().replace(/\D/g, "");
     if (formattedPhone.startsWith("0")) {
       formattedPhone = "254" + formattedPhone.slice(1);
@@ -55,8 +52,8 @@ export async function POST(req: NextRequest) {
 
     const consumerKey = process.env.MPESA_CONSUMER_KEY;
     const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
-    const shortcode = process.env.MPESA_SHORTCODE; // 3566323 (Daraja Short Code)
-    const tillNumber = process.env.MPESA_TILL_NUMBER || shortcode; // 6723649 (customer Till)
+    const shortcode = process.env.MPESA_SHORTCODE;
+    const tillNumber = process.env.MPESA_TILL_NUMBER || shortcode;
     const passkey = process.env.MPESA_PASSKEY;
     const callbackUrl = process.env.MPESA_CALLBACK_URL;
 
@@ -64,14 +61,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "M-Pesa credentials missing. Check environment variables.",
+          error: "M-Pesa credentials missing. Check environment variables on Vercel.",
         },
         { status: 500 }
       );
     }
 
-    // LIVE endpoints
     const tokenUrl =
       "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
     const stkUrl =
@@ -101,7 +96,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Timestamp MUST be Africa/Nairobi (UTC+3)
     const timestamp = new Date()
       .toLocaleString("sv-SE", { timeZone: "Africa/Nairobi" })
       .replace(/[-: ]/g, "")
@@ -111,8 +105,6 @@ export async function POST(req: NextRequest) {
       "base64"
     );
 
-    // BusinessShortCode = Daraja Short Code (3566323)
-    // PartyB            = actual Till Number (6723649)
     const stkResponse = await fetch(stkUrl, {
       method: "POST",
       headers: {
@@ -137,22 +129,34 @@ export async function POST(req: NextRequest) {
     const stkJson = await stkResponse.json();
 
     if (stkJson.ResponseCode === "0") {
-      // Save pending transaction so the callback can credit the correct user
       const checkoutRequestId = stkJson.CheckoutRequestID;
 
-      await adminDb
-        .collection("pending_mpesa")
-        .doc(checkoutRequestId)
-        .set({
-          userId,
+      // Save pending transaction (if this fails we still return success for STK)
+      try {
+        await adminDb
+          .collection("pending_mpesa")
+          .doc(checkoutRequestId)
+          .set({
+            userId,
+            checkoutRequestId,
+            merchantRequestId: stkJson.MerchantRequestID || "",
+            amountUSD: creditUSD,
+            amountKES: kesAmount,
+            phone: formattedPhone,
+            status: "pending",
+            createdAt: FieldValue.serverTimestamp(),
+          });
+      } catch (firestoreError: any) {
+        console.error("Firestore pending save failed:", firestoreError);
+        // STK already sent – still return success but warn
+        return NextResponse.json({
+          success: true,
           checkoutRequestId,
-          merchantRequestId: stkJson.MerchantRequestID || "",
-          amountUSD: creditUSD,
-          amountKES: kesAmount,
-          phone: formattedPhone,
-          status: "pending",
-          createdAt: FieldValue.serverTimestamp(),
+          merchantRequestId: stkJson.MerchantRequestID,
+          warning:
+            "STK sent but could not save pending transaction. Wallet may not auto-credit. Check Firebase Admin env vars.",
         });
+      }
 
       return NextResponse.json({
         success: true,
@@ -174,7 +178,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "Server error",
+        error: error?.message || "Server error",
       },
       { status: 500 }
     );
