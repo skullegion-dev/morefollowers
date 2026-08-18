@@ -17,7 +17,9 @@ export default function AddFundsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const [method, setMethod] = useState<"stripe" | "paypal" | "crypto" | "mpesa">("stripe");
+  const [method, setMethod] = useState<"stripe" | "paypal" | "crypto" | "mpesa">(
+    "stripe"
+  );
   const [amountUSD, setAmountUSD] = useState<number>(10);
   const [amountKES, setAmountKES] = useState<number>(100);
   const [customAmount, setCustomAmount] = useState("");
@@ -25,6 +27,7 @@ export default function AddFundsPage() {
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [debugInfo, setDebugInfo] = useState("");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -51,8 +54,8 @@ export default function AddFundsPage() {
   const finalUSD = isMpesa
     ? kesToUsd(finalKES)
     : customAmount
-    ? Number(customAmount)
-    : amountUSD;
+      ? Number(customAmount)
+      : amountUSD;
 
   const handlePreset = (value: number) => {
     if (isMpesa) {
@@ -82,6 +85,7 @@ export default function AddFundsPage() {
     setProcessing(true);
     setMessage("");
     setConfirming(false);
+    setDebugInfo("");
 
     try {
       if (method === "mpesa") {
@@ -107,8 +111,79 @@ export default function AddFundsPage() {
         if (data.success) {
           setConfirming(true);
           setMessage(
-            "STK Push sent! Enter your M-Pesa PIN on your phone. Confirming payment… This can take up to 1 minute. Your wallet will be credited automatically when payment succeeds."
+            "STK Push sent! Enter your M-Pesa PIN on your phone. Confirming payment…"
           );
+
+          const checkoutRequestId = data.checkoutRequestId;
+          let attempts = 0;
+          const maxAttempts = 24;
+
+          const poll = async () => {
+            attempts++;
+            try {
+              const statusRes = await fetch("/api/payments/mpesa/status", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  checkoutRequestId,
+                  userId: user.uid,
+                }),
+              });
+
+              const statusData = await statusRes.json();
+              setDebugInfo(
+                `Check ${attempts}: status=${statusData.status || "?"} | ${
+                  statusData.message ||
+                  statusData.error ||
+                  JSON.stringify(statusData.details || statusData)
+                }`
+              );
+
+              if (statusData.status === "completed") {
+                setMessage(
+                  `Payment confirmed! $${Number(statusData.amountUSD).toFixed(2)} has been added to your wallet.`
+                );
+                setConfirming(false);
+                return;
+              }
+
+              if (statusData.status === "failed") {
+                setMessage(
+                  statusData.error || "Payment failed or was cancelled."
+                );
+                setConfirming(false);
+                return;
+              }
+
+              if (statusData.status === "error" || statusData.status === "not_found") {
+                setMessage(statusData.error || "Could not verify payment.");
+                setConfirming(false);
+                return;
+              }
+
+              if (attempts < maxAttempts) {
+                setTimeout(poll, 5000);
+              } else {
+                setMessage(
+                  "Timed out waiting for confirmation. If M-Pesa SMS shows success, tell support your CheckoutRequestID: " +
+                    checkoutRequestId
+                );
+                setConfirming(false);
+              }
+            } catch (err: any) {
+              setDebugInfo(`Check ${attempts} failed: ${err?.message || "network error"}`);
+              if (attempts < maxAttempts) {
+                setTimeout(poll, 5000);
+              } else {
+                setMessage(
+                  "Could not confirm payment status. Check your dashboard shortly."
+                );
+                setConfirming(false);
+              }
+            }
+          };
+
+          setTimeout(poll, 8000);
         } else {
           setMessage(data.error || "M-Pesa payment failed");
         }
@@ -135,7 +210,11 @@ export default function AddFundsPage() {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-2xl">
-      <Button variant="ghost" className="mb-6" onClick={() => router.push("/dashboard")}>
+      <Button
+        variant="ghost"
+        className="mb-6"
+        onClick={() => router.push("/dashboard")}
+      >
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Dashboard
       </Button>
@@ -143,7 +222,6 @@ export default function AddFundsPage() {
       <h1 className="text-3xl font-bold mb-2">Add Funds</h1>
       <p className="text-muted-foreground mb-8">Top up your wallet</p>
 
-      {/* Payment Methods */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Select Payment Method</CardTitle>
@@ -204,7 +282,9 @@ export default function AddFundsPage() {
             </div>
             <div className="flex-1">
               <p className="font-medium">Cryptocurrency</p>
-              <p className="text-sm text-muted-foreground">BTC, BNB, LTC, USDT, USDC</p>
+              <p className="text-sm text-muted-foreground">
+                BTC, BNB, LTC, USDT, USDC
+              </p>
             </div>
           </div>
 
@@ -234,7 +314,6 @@ export default function AddFundsPage() {
         </CardContent>
       </Card>
 
-      {/* Amount */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>
@@ -307,13 +386,21 @@ export default function AddFundsPage() {
 
       {message && (
         <div
-          className={`mb-6 p-4 rounded-lg text-sm text-center ${
-            message.toLowerCase().includes("sent") || confirming
+          className={`mb-4 p-4 rounded-lg text-sm text-center ${
+            message.toLowerCase().includes("confirmed") ||
+            message.toLowerCase().includes("sent") ||
+            confirming
               ? "bg-green-50 text-green-700 dark:bg-green-900/20"
               : "bg-red-50 text-red-700 dark:bg-red-900/20"
           }`}
         >
           {message}
+        </div>
+      )}
+
+      {debugInfo && (
+        <div className="mb-6 p-3 rounded-lg text-xs bg-muted text-muted-foreground break-all">
+          {debugInfo}
         </div>
       )}
 
