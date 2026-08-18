@@ -15,8 +15,6 @@ import {
   CreditCard,
   Globe,
   Headphones,
-  TrendingUp,
-  CheckCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
@@ -48,9 +46,9 @@ export default function HomePage() {
             transition={{ duration: 0.7, delay: 0.1 }}
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6"
           >
-            Grow Your{" "}
+            Get{" "}
             <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
-              Social Media
+              More Followers
             </span>
             <br />
             Instantly
@@ -252,9 +250,7 @@ export default function HomePage() {
       <section className="py-20">
         <div className="container px-4 max-w-4xl">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              How it Works
-            </h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">How it Works</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
