@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -8,16 +8,57 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Wallet, ShoppingCart, History, LogOut } from "lucide-react";
 import { formatUSD } from "@/lib/currency";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function DashboardPage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
+  const [balance, setBalance] = useState<number>(0);
+  const [balanceLoading, setBalanceLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
+
+  // Load + live-update wallet balance from Firestore users/{uid}.balance
+  useEffect(() => {
+    if (!user) {
+      setBalance(0);
+      setBalanceLoading(false);
+      return;
+    }
+
+    const userRef = doc(db, "users", user.uid);
+
+    const unsubscribe = onSnapshot(
+      userRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setBalance(Number(data.balance || 0));
+        } else {
+          setBalance(0);
+        }
+        setBalanceLoading(false);
+      },
+      (err) => {
+        console.error("Balance listen error:", err);
+        // Fallback one-time read
+        getDoc(userRef)
+          .then((snap) => {
+            if (snap.exists()) {
+              setBalance(Number(snap.data().balance || 0));
+            }
+          })
+          .finally(() => setBalanceLoading(false));
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   if (loading) {
     return (
@@ -33,9 +74,6 @@ export default function DashboardPage() {
     await logout();
     router.push("/");
   };
-
-  // Temporary balance (we will connect real balance later)
-  const balance = 0;
 
   return (
     <div className="container mx-auto px-4 py-10">
@@ -66,7 +104,9 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">{formatUSD(balance)}</p>
+              <p className="text-3xl font-bold">
+                {balanceLoading ? "…" : formatUSD(balance)}
+              </p>
               <p className="text-sm opacity-80 mt-1">Available balance</p>
               <Button
                 variant="secondary"
