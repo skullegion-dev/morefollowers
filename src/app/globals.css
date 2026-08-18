@@ -4,24 +4,6 @@
 
 html,
 body {
-  width: 100%;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
-}
-
-body {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-/* Force all containers to be centered */
-.container {
-  width: 100% !important;
-  max-width: 1280px !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  padding-left: 1rem !important;
-  padding-right: 1rem !important;
 }
