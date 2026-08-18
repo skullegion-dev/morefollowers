@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatUSD, formatKES, usdToKes, kesToUsd } from "@/lib/currency";
-import { ArrowLeft, Smartphone, CreditCard, Bitcoin } from "lucide-react";
+import { ArrowLeft, CreditCard, Bitcoin } from "lucide-react";
 import Image from "next/image";
 
 const PRESET_USD = [5, 10, 20, 50, 100, 200];
-const PRESET_KES = [500, 1000, 2000, 5000, 10000, 20000];
+const PRESET_KES = [100, 200, 300, 400, 500];
 
 export default function AddFundsPage() {
   const { user, loading } = useAuth();
@@ -19,7 +19,7 @@ export default function AddFundsPage() {
 
   const [method, setMethod] = useState<"stripe" | "paypal" | "crypto" | "mpesa">("stripe");
   const [amountUSD, setAmountUSD] = useState<number>(10);
-  const [amountKES, setAmountKES] = useState<number>(1000);
+  const [amountKES, setAmountKES] = useState<number>(500);
   const [customAmount, setCustomAmount] = useState("");
   const [phone, setPhone] = useState("");
   const [processing, setProcessing] = useState(false);
@@ -39,8 +39,8 @@ export default function AddFundsPage() {
     );
   }
 
-  // Calculate final amounts
   const isMpesa = method === "mpesa";
+
   const finalKES = isMpesa
     ? customAmount
       ? Number(customAmount)
@@ -63,8 +63,8 @@ export default function AddFundsPage() {
   };
 
   const handlePay = async () => {
-    if (finalUSD < 1) {
-      setMessage("Minimum amount is $1.00");
+    if (finalUSD < 0.5) {
+      setMessage("Minimum amount is too low");
       return;
     }
 
@@ -80,21 +80,30 @@ export default function AddFundsPage() {
       if (method === "mpesa") {
         const res = await fetch("/api/payments/mpesa", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
             amountUSD: finalUSD,
-            amountKES: finalKES,
+            amountKES: Math.round(finalKES),
             phone: phone,
             userId: user.uid,
           }),
         });
 
+        // Check if response is JSON
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          const text = await res.text();
+          console.error("Non-JSON response:", text.substring(0, 200));
+          setMessage("Server error: API route not working correctly. Please check the console.");
+          return;
+        }
+
         const data = await res.json();
 
         if (data.success) {
-          setMessage(
-            "STK Push sent! Check your phone and enter your M-Pesa PIN."
-          );
+          setMessage("STK Push sent! Check your phone and enter your M-Pesa PIN.");
         } else {
           setMessage(data.error || "M-Pesa payment failed");
         }
@@ -110,8 +119,8 @@ export default function AddFundsPage() {
         setMessage("Crypto will be connected next...");
       }
     } catch (error: any) {
-      console.error(error);
-      setMessage(error.message || "Network error. Please try again.");
+      console.error("Payment error:", error);
+      setMessage(error.message || "Something went wrong. Please try again.");
     } finally {
       setProcessing(false);
     }
@@ -137,11 +146,9 @@ export default function AddFundsPage() {
       </Button>
 
       <h1 className="text-3xl font-bold mb-2">Add Funds</h1>
-      <p className="text-muted-foreground mb-8">
-        Top up your wallet
-      </p>
+      <p className="text-muted-foreground mb-8">Top up your wallet</p>
 
-      {/* Payment Methods - New Order */}
+      {/* Payment Methods */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Select Payment Method</CardTitle>
@@ -208,7 +215,7 @@ export default function AddFundsPage() {
             </div>
           </div>
 
-          {/* M-Pesa - Last */}
+          {/* M-Pesa */}
           <div
             className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition ${
               method === "mpesa" ? "border-primary bg-primary/5" : ""
@@ -229,14 +236,12 @@ export default function AddFundsPage() {
             </div>
             <div className="flex-1">
               <p className="font-medium">M-Pesa</p>
-              <p className="text-sm text-muted-foreground">Instant mobile money</p>
             </div>
-            <Smartphone className="h-5 w-5 text-muted-foreground" />
           </div>
         </CardContent>
       </Card>
 
-      {/* Amount Selection */}
+      {/* Amount */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>
@@ -244,7 +249,7 @@ export default function AddFundsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
             {(isMpesa ? PRESET_KES : PRESET_USD).map((value) => (
               <Button
                 key={value}
@@ -255,18 +260,18 @@ export default function AddFundsPage() {
                 }
                 onClick={() => handlePreset(value)}
               >
-                {isMpesa ? `Ksh ${value.toLocaleString()}` : `$${value}`}
+                {isMpesa ? `Ksh ${value}` : `$${value}`}
               </Button>
             ))}
           </div>
 
           <div>
             <label className="text-sm text-muted-foreground">
-              Custom amount ({isMpesa ? "KES" : "USD"})
+              {isMpesa ? "Enter any amount (KES)" : "Enter any amount (USD)"}
             </label>
             <Input
               type="number"
-              placeholder={isMpesa ? "Enter amount in KES" : "Enter amount in USD"}
+              placeholder={isMpesa ? "e.g. 750" : "e.g. 15"}
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
               min="1"
@@ -292,7 +297,7 @@ export default function AddFundsPage() {
         </CardContent>
       </Card>
 
-      {/* M-Pesa Phone */}
+      {/* Phone number for M-Pesa */}
       {isMpesa && (
         <Card className="mb-6">
           <CardContent className="pt-6">
@@ -314,8 +319,8 @@ export default function AddFundsPage() {
       {message && (
         <div
           className={`mb-6 p-4 rounded-lg text-sm text-center ${
-            message.toLowerCase().includes("success") ||
-            message.toLowerCase().includes("sent")
+            message.toLowerCase().includes("sent") ||
+            message.toLowerCase().includes("success")
               ? "bg-green-50 text-green-700 dark:bg-green-900/20"
               : "bg-red-50 text-red-700 dark:bg-red-900/20"
           }`}
@@ -327,7 +332,7 @@ export default function AddFundsPage() {
       <Button
         className="w-full h-12 text-base"
         onClick={handlePay}
-        disabled={processing || finalUSD < 1}
+        disabled={processing || finalUSD < 0.5}
       >
         {getButtonText()}
       </Button>
