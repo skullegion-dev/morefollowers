@@ -5,13 +5,14 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { AuthProvider } from "@/context/AuthContext";
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "MoreFollowers – Get More Followers Instantly",
   description:
-    "Buy real followers, likes & views for Instagram, TikTok, YouTube, Spotify and more.",
+    "Buy real followers, likes & views for Instagram, TikTok, YouTube, Facebook & more. Pay with M-Pesa, Stripe, PayPal or Crypto.",
 };
 
 export default function RootLayout({
@@ -21,17 +22,21 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${inter.className} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
-            <div className="min-h-screen flex flex-col">
+            <div className="min-h-screen flex flex-col w-full">
               <Navbar />
-              <main className="flex-1">{children}</main>
+              <main className="flex-1 w-full">{children}</main>
               <Footer />
             </div>
           </AuthProvider>
         </ThemeProvider>
+
+        {/* Google Analytics - Replace G-XXXXXXXXXX with your real ID */}
+        <GoogleAnalytics gaId="G-YDZBB8LN51" />
       </body>
     </html>
   );
 }
+
