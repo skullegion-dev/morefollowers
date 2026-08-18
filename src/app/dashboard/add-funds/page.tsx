@@ -11,7 +11,7 @@ import { ArrowLeft, CreditCard, Bitcoin } from "lucide-react";
 import Image from "next/image";
 
 const PRESET_USD = [5, 10, 20, 50, 100, 200];
-const PRESET_KES = [100, 200, 300, 400, 500];
+const PRESET_KES = [50, 100, 200, 300, 500, 1000];
 
 export default function AddFundsPage() {
   const { user, loading } = useAuth();
@@ -19,7 +19,7 @@ export default function AddFundsPage() {
 
   const [method, setMethod] = useState<"stripe" | "paypal" | "crypto" | "mpesa">("stripe");
   const [amountUSD, setAmountUSD] = useState<number>(10);
-  const [amountKES, setAmountKES] = useState<number>(500);
+  const [amountKES, setAmountKES] = useState<number>(100);
   const [customAmount, setCustomAmount] = useState("");
   const [phone, setPhone] = useState("");
   const [processing, setProcessing] = useState(false);
@@ -63,8 +63,13 @@ export default function AddFundsPage() {
   };
 
   const handlePay = async () => {
-    if (finalUSD < 0.5) {
-      setMessage("Minimum amount is too low");
+    if (isMpesa && finalKES < 1) {
+      setMessage("Minimum M-Pesa amount is Ksh 1");
+      return;
+    }
+
+    if (!isMpesa && finalUSD < 1) {
+      setMessage("Minimum amount is $1");
       return;
     }
 
@@ -80,9 +85,7 @@ export default function AddFundsPage() {
       if (method === "mpesa") {
         const res = await fetch("/api/payments/mpesa", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             amountUSD: finalUSD,
             amountKES: Math.round(finalKES),
@@ -91,36 +94,28 @@ export default function AddFundsPage() {
           }),
         });
 
-        // Check if response is JSON
         const contentType = res.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
-          const text = await res.text();
-          console.error("Non-JSON response:", text.substring(0, 200));
-          setMessage("Server error: API route not working correctly. Please check the console.");
+          setMessage("Server error: API did not return JSON");
           return;
         }
 
         const data = await res.json();
 
         if (data.success) {
-          setMessage("STK Push sent! Check your phone and enter your M-Pesa PIN.");
+          setMessage(
+            "STK Push sent! Check your phone and enter your M-Pesa PIN. It can take up to 1 minute."
+          );
         } else {
           setMessage(data.error || "M-Pesa payment failed");
         }
       }
 
-      if (method === "stripe") {
-        setMessage("Stripe will be connected next...");
-      }
-      if (method === "paypal") {
-        setMessage("PayPal will be connected next...");
-      }
-      if (method === "crypto") {
-        setMessage("Crypto will be connected next...");
-      }
+      if (method === "stripe") setMessage("Stripe coming next...");
+      if (method === "paypal") setMessage("PayPal coming next...");
+      if (method === "crypto") setMessage("Crypto coming next...");
     } catch (error: any) {
-      console.error("Payment error:", error);
-      setMessage(error.message || "Something went wrong. Please try again.");
+      setMessage(error.message || "Something went wrong");
     } finally {
       setProcessing(false);
     }
@@ -136,11 +131,7 @@ export default function AddFundsPage() {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-2xl">
-      <Button
-        variant="ghost"
-        className="mb-6"
-        onClick={() => router.push("/dashboard")}
-      >
+      <Button variant="ghost" className="mb-6" onClick={() => router.push("/dashboard")}>
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Dashboard
       </Button>
@@ -154,9 +145,8 @@ export default function AddFundsPage() {
           <CardTitle>Select Payment Method</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* Stripe */}
           <div
-            className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition ${
+            className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer ${
               method === "stripe" ? "border-primary bg-primary/5" : ""
             }`}
             onClick={() => {
@@ -174,9 +164,8 @@ export default function AddFundsPage() {
             <CreditCard className="h-5 w-5 text-muted-foreground" />
           </div>
 
-          {/* PayPal */}
           <div
-            className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition ${
+            className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer ${
               method === "paypal" ? "border-primary bg-primary/5" : ""
             }`}
             onClick={() => {
@@ -194,9 +183,8 @@ export default function AddFundsPage() {
             </div>
           </div>
 
-          {/* Crypto */}
           <div
-            className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition ${
+            className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer ${
               method === "crypto" ? "border-primary bg-primary/5" : ""
             }`}
             onClick={() => {
@@ -209,15 +197,12 @@ export default function AddFundsPage() {
             </div>
             <div className="flex-1">
               <p className="font-medium">Cryptocurrency</p>
-              <p className="text-sm text-muted-foreground">
-                BTC, BNB, LTC, USDT, USDC
-              </p>
+              <p className="text-sm text-muted-foreground">BTC, BNB, LTC, USDT, USDC</p>
             </div>
           </div>
 
-          {/* M-Pesa */}
           <div
-            className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition ${
+            className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer ${
               method === "mpesa" ? "border-primary bg-primary/5" : ""
             }`}
             onClick={() => {
@@ -249,7 +234,7 @@ export default function AddFundsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
             {(isMpesa ? PRESET_KES : PRESET_USD).map((value) => (
               <Button
                 key={value}
@@ -271,7 +256,7 @@ export default function AddFundsPage() {
             </label>
             <Input
               type="number"
-              placeholder={isMpesa ? "e.g. 750" : "e.g. 15"}
+              placeholder={isMpesa ? "e.g. 50" : "e.g. 5"}
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
               min="1"
@@ -297,7 +282,6 @@ export default function AddFundsPage() {
         </CardContent>
       </Card>
 
-      {/* Phone number for M-Pesa */}
       {isMpesa && (
         <Card className="mb-6">
           <CardContent className="pt-6">
@@ -309,9 +293,6 @@ export default function AddFundsPage() {
               onChange={(e) => setPhone(e.target.value)}
               className="mt-2"
             />
-            <p className="text-xs text-muted-foreground mt-2">
-              Enter the Safaricom number registered with M-Pesa
-            </p>
           </CardContent>
         </Card>
       )}
@@ -319,8 +300,7 @@ export default function AddFundsPage() {
       {message && (
         <div
           className={`mb-6 p-4 rounded-lg text-sm text-center ${
-            message.toLowerCase().includes("sent") ||
-            message.toLowerCase().includes("success")
+            message.toLowerCase().includes("sent")
               ? "bg-green-50 text-green-700 dark:bg-green-900/20"
               : "bg-red-50 text-red-700 dark:bg-red-900/20"
           }`}
@@ -332,7 +312,7 @@ export default function AddFundsPage() {
       <Button
         className="w-full h-12 text-base"
         onClick={handlePay}
-        disabled={processing || finalUSD < 0.5}
+        disabled={processing}
       >
         {getButtonText()}
       </Button>
