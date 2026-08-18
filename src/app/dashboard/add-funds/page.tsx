@@ -24,6 +24,7 @@ export default function AddFundsPage() {
   const [phone, setPhone] = useState("");
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState("");
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -80,6 +81,7 @@ export default function AddFundsPage() {
 
     setProcessing(true);
     setMessage("");
+    setConfirming(false);
 
     try {
       if (method === "mpesa") {
@@ -103,8 +105,9 @@ export default function AddFundsPage() {
         const data = await res.json();
 
         if (data.success) {
+          setConfirming(true);
           setMessage(
-            "STK Push sent! Check your phone and enter your M-Pesa PIN. It can take up to 1 minute."
+            "STK Push sent! Enter your M-Pesa PIN on your phone. Confirming payment… This can take up to 1 minute. Your wallet will be credited automatically when payment succeeds."
           );
         } else {
           setMessage(data.error || "M-Pesa payment failed");
@@ -123,6 +126,7 @@ export default function AddFundsPage() {
 
   const getButtonText = () => {
     if (processing) return "Processing...";
+    if (confirming) return "Confirming payment…";
     if (method === "mpesa") return `Pay ${formatKES(finalKES)} with M-Pesa`;
     if (method === "stripe") return `Pay ${formatUSD(finalUSD)} with Card`;
     if (method === "paypal") return `Pay ${formatUSD(finalUSD)} with PayPal`;
@@ -152,6 +156,7 @@ export default function AddFundsPage() {
             onClick={() => {
               setMethod("stripe");
               setCustomAmount("");
+              setConfirming(false);
             }}
           >
             <div className="w-10 h-10 bg-indigo-600 rounded flex items-center justify-center text-white text-xs font-bold">
@@ -171,6 +176,7 @@ export default function AddFundsPage() {
             onClick={() => {
               setMethod("paypal");
               setCustomAmount("");
+              setConfirming(false);
             }}
           >
             <div className="w-10 h-10 flex items-center justify-center font-bold text-sm">
@@ -190,6 +196,7 @@ export default function AddFundsPage() {
             onClick={() => {
               setMethod("crypto");
               setCustomAmount("");
+              setConfirming(false);
             }}
           >
             <div className="w-10 h-10 flex items-center justify-center">
@@ -208,6 +215,7 @@ export default function AddFundsPage() {
             onClick={() => {
               setMethod("mpesa");
               setCustomAmount("");
+              setConfirming(false);
             }}
           >
             <div className="w-10 h-10 relative flex items-center justify-center">
@@ -300,7 +308,7 @@ export default function AddFundsPage() {
       {message && (
         <div
           className={`mb-6 p-4 rounded-lg text-sm text-center ${
-            message.toLowerCase().includes("sent")
+            message.toLowerCase().includes("sent") || confirming
               ? "bg-green-50 text-green-700 dark:bg-green-900/20"
               : "bg-red-50 text-red-700 dark:bg-red-900/20"
           }`}
@@ -312,7 +320,7 @@ export default function AddFundsPage() {
       <Button
         className="w-full h-12 text-base"
         onClick={handlePay}
-        disabled={processing}
+        disabled={processing || confirming}
       >
         {getButtonText()}
       </Button>

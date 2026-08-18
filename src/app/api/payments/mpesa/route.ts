@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { usdToKes } from "@/lib/currency";
+import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +16,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Prefer amountKES if provided (from the new UI), otherwise convert from USD
-    let kesAmount = amountKES ? Math.round(Number(amountKES)) : Math.round(usdToKes(Number(amountUSD)));
+    let kesAmount = amountKES
+      ? Math.round(Number(amountKES))
+      : Math.round(usdToKes(Number(amountUSD)));
 
     if (!kesAmount || kesAmount < 1) {
       return NextResponse.json(
@@ -22,6 +26,12 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Store the exact USD amount we will credit later
+    const creditUSD =
+      amountUSD !== undefined && amountUSD !== null
+        ? Number(Number(amountUSD).toFixed(2))
+        : Number((kesAmount / 129.5).toFixed(2));
 
     // Format phone to 2547XXXXXXXX
     let formattedPhone = phone.toString().replace(/\D/g, "");
@@ -101,9 +111,8 @@ export async function POST(req: NextRequest) {
       "base64"
     );
 
-    // IMPORTANT:
     // BusinessShortCode = Daraja Short Code (3566323)
-    // PartyB            = actual Till Number (6723649)  ← as instructed by Safaricom
+    // PartyB            = actual Till Number (6723649)
     const stkResponse = await fetch(stkUrl, {
       method: "POST",
       headers: {
@@ -117,7 +126,7 @@ export async function POST(req: NextRequest) {
         TransactionType: "CustomerBuyGoodsOnline",
         Amount: kesAmount,
         PartyA: formattedPhone,
-        PartyB: tillNumber,                    // ← Till Number (6723649)
+        PartyB: tillNumber,
         PhoneNumber: formattedPhone,
         CallBackURL: callbackUrl,
         AccountReference: "MoreFollowers",
@@ -128,9 +137,26 @@ export async function POST(req: NextRequest) {
     const stkJson = await stkResponse.json();
 
     if (stkJson.ResponseCode === "0") {
+      // Save pending transaction so the callback can credit the correct user
+      const checkoutRequestId = stkJson.CheckoutRequestID;
+
+      await adminDb
+        .collection("pending_mpesa")
+        .doc(checkoutRequestId)
+        .set({
+          userId,
+          checkoutRequestId,
+          merchantRequestId: stkJson.MerchantRequestID || "",
+          amountUSD: creditUSD,
+          amountKES: kesAmount,
+          phone: formattedPhone,
+          status: "pending",
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
       return NextResponse.json({
         success: true,
-        checkoutRequestId: stkJson.CheckoutRequestID,
+        checkoutRequestId,
         merchantRequestId: stkJson.MerchantRequestID,
       });
     }
