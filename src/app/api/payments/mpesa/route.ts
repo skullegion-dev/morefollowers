@@ -35,7 +35,10 @@ export async function POST(req: NextRequest) {
 
     if (!formattedPhone.startsWith("254") || formattedPhone.length !== 12) {
       return NextResponse.json(
-        { success: false, error: "Invalid phone number. Use format 0712345678" },
+        {
+          success: false,
+          error: "Invalid phone number. Use format 0712345678",
+        },
         { status: 400 }
       );
     }
@@ -63,11 +66,14 @@ export async function POST(req: NextRequest) {
     const stkUrl =
       "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
 
-    // Get access token
+    const authHeader = Buffer.from(
+      `${consumerKey}:${consumerSecret}`
+    ).toString("base64");
+
     const tokenResponse = await fetch(tokenUrl, {
       method: "GET",
       headers: {
-        Authorization: `Basic ${auth}`,
+        Authorization: `Basic ${authHeader}`,
       },
     });
 
@@ -105,11 +111,9 @@ export async function POST(req: NextRequest) {
         PartyA: formattedPhone,
         PartyB: shortcode,
         PhoneNumber: formattedPhone,
-        CallBackURL:
-          callbackUrl ||
-          "https://morefollowers.shop/api/payments/mpesa/callback",
+        CallBackURL: callbackUrl,
         AccountReference: "MoreFollowers",
-        TransactionDesc: `MoreFollowers top-up`,
+        TransactionDesc: "MoreFollowers top-up",
       }),
     });
 
