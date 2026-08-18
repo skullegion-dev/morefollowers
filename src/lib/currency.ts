@@ -1,4 +1,4 @@
-export const USD_TO_KES = 129.5; // Change this rate whenever you want
+export const USD_TO_KES = 129.5;
 
 export function formatUSD(amount: number): string {
   return new Intl.NumberFormat("en-US", {
