@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,9 +15,20 @@ import { db } from "@/lib/firebase";
 const PRESET_USD = [5, 10, 20, 50, 100, 200];
 const PRESET_KES = [50, 100, 200, 300, 500, 1000];
 
+const CRYPTO_OPTIONS = [
+  { id: "", label: "Any coin (user chooses)" },
+  { id: "btc", label: "BTC" },
+  { id: "bnbmainnet", label: "BNB" },
+  { id: "ltc", label: "LTC" },
+  { id: "usdttrc20", label: "USDT (TRC20)" },
+  { id: "usdterc20", label: "USDT (ERC20)" },
+  { id: "usdc", label: "USDC" },
+];
+
 export default function AddFundsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [method, setMethod] = useState<"stripe" | "paypal" | "crypto" | "mpesa">(
     "stripe"
@@ -26,6 +37,7 @@ export default function AddFundsPage() {
   const [amountKES, setAmountKES] = useState<number>(100);
   const [customAmount, setCustomAmount] = useState("");
   const [phone, setPhone] = useState("");
+  const [cryptoCoin, setCryptoCoin] = useState("");
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState("");
   const [confirming, setConfirming] = useState(false);
@@ -35,6 +47,7 @@ export default function AddFundsPage() {
   const [creditedAmount, setCreditedAmount] = useState<number | null>(null);
 
   const prevBalanceRef = useRef<number | null>(null);
+  const paypalHandled = useRef(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -42,7 +55,6 @@ export default function AddFundsPage() {
     }
   }, [user, loading, router]);
 
-  // Live wallet balance
   useEffect(() => {
     if (!user) return;
 
@@ -68,6 +80,79 @@ export default function AddFundsPage() {
 
     return () => unsubscribe();
   }, [user]);
+
+  // Handle return from Stripe / PayPal / Crypto
+  useEffect(() => {
+    if (!user) return;
+
+    const stripe = searchParams.get("stripe");
+    const paypal = searchParams.get("paypal");
+    const crypto = searchParams.get("crypto");
+
+    if (stripe === "success") {
+      setMessage(
+        "Card payment received. Your wallet will update in a few seconds."
+      );
+      setMethod("stripe");
+    }
+    if (stripe === "cancel") {
+      setMessage("Card payment was cancelled.");
+      setMethod("stripe");
+    }
+
+    if (paypal === "cancel") {
+      setMessage("PayPal payment was cancelled.");
+      setMethod("paypal");
+    }
+
+    if (crypto === "success") {
+      setMessage(
+        "Crypto payment submitted. Balance updates after network confirmation."
+      );
+      setMethod("crypto");
+    }
+    if (crypto === "cancel") {
+      setMessage("Crypto payment was cancelled.");
+      setMethod("crypto");
+    }
+
+    // Capture PayPal on return (token is order ID in some flows; PayPal returns token)
+    if (paypal === "success" && !paypalHandled.current) {
+      paypalHandled.current = true;
+      setMethod("paypal");
+      setConfirming(true);
+      setMessage("Confirming PayPal payment…");
+
+      const token = searchParams.get("token"); // PayPal order ID
+      if (token) {
+        fetch("/api/payments/paypal/capture-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: token, userId: user.uid }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.success && data.status === "completed") {
+              setMessage(
+                `Payment confirmed! $${Number(data.amountUSD).toFixed(2)} added to your wallet.`
+              );
+            } else {
+              setMessage(
+                data.error ||
+                  "PayPal capture pending. Balance will update shortly if paid."
+              );
+            }
+          })
+          .catch(() => {
+            setMessage("Could not confirm PayPal payment. Check balance shortly.");
+          })
+          .finally(() => setConfirming(false));
+      } else {
+        setMessage("PayPal returned without order id. Check your balance shortly.");
+        setConfirming(false);
+      }
+    }
+  }, [searchParams, user]);
 
   if (loading || !user) {
     return (
@@ -125,6 +210,62 @@ export default function AddFundsPage() {
     setConfirming(false);
 
     try {
+      // ===== STRIPE =====
+      if (method === "stripe") {
+        const res = await fetch("/api/payments/stripe/create-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amountUSD: finalUSD,
+            userId: user.uid,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.url) {
+          window.location.href = data.url;
+          return;
+        }
+        setMessage(data.error || "Could not start card payment");
+      }
+
+      // ===== PAYPAL =====
+      if (method === "paypal") {
+        const res = await fetch("/api/payments/paypal/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amountUSD: finalUSD,
+            userId: user.uid,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.url) {
+          window.location.href = data.url;
+          return;
+        }
+        setMessage(data.error || "Could not start PayPal payment");
+      }
+
+      // ===== CRYPTO =====
+      if (method === "crypto") {
+        const res = await fetch("/api/payments/crypto/create-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amountUSD: finalUSD,
+            userId: user.uid,
+            payCurrency: cryptoCoin || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.url) {
+          window.location.href = data.url;
+          return;
+        }
+        setMessage(data.error || "Could not start crypto payment");
+      }
+
+      // ===== M-PESA =====
       if (method === "mpesa") {
         const res = await fetch("/api/payments/mpesa", {
           method: "POST",
@@ -219,10 +360,6 @@ export default function AddFundsPage() {
           setMessage(data.error || "M-Pesa payment failed");
         }
       }
-
-      if (method === "stripe") setMessage("Stripe coming next...");
-      if (method === "paypal") setMessage("PayPal coming next...");
-      if (method === "crypto") setMessage("Crypto coming next...");
     } catch (error: any) {
       setMessage(error.message || "Something went wrong");
     } finally {
@@ -241,9 +378,8 @@ export default function AddFundsPage() {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-2xl relative">
-      {/* Balance updated popup */}
       {showBalancePopup && creditedAmount !== null && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg bg-emerald-600 text-white text-sm font-medium animate-in fade-in slide-in-from-top-2">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg bg-emerald-600 text-white text-sm font-medium">
           +{formatUSD(creditedAmount)} added to your wallet
         </div>
       )}
@@ -260,7 +396,6 @@ export default function AddFundsPage() {
       <h1 className="text-3xl font-bold mb-2">Add Funds</h1>
       <p className="text-muted-foreground mb-6">Top up your wallet</p>
 
-      {/* Wallet balance at top */}
       <div
         className={`mb-8 p-4 rounded-xl border flex items-center justify-between transition-all duration-500 ${
           balanceHighlight
@@ -444,6 +579,25 @@ export default function AddFundsPage() {
         </CardContent>
       </Card>
 
+      {method === "crypto" && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <label className="text-sm font-medium">Preferred coin (optional)</label>
+            <select
+              className="mt-2 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+              value={cryptoCoin}
+              onChange={(e) => setCryptoCoin(e.target.value)}
+            >
+              {CRYPTO_OPTIONS.map((c) => (
+                <option key={c.id || "any"} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </CardContent>
+        </Card>
+      )}
+
       {isMpesa && (
         <Card className="mb-6">
           <CardContent className="pt-6">
@@ -468,6 +622,8 @@ export default function AddFundsPage() {
           className={`mb-6 p-4 rounded-lg text-sm text-center ${
             message.toLowerCase().includes("confirmed") ||
             message.toLowerCase().includes("confirming") ||
+            message.toLowerCase().includes("received") ||
+            message.toLowerCase().includes("submitted") ||
             confirming
               ? "bg-green-50 text-green-700 dark:bg-green-900/20"
               : "bg-red-50 text-red-700 dark:bg-red-900/20"
