@@ -3,9 +3,15 @@ import Stripe from "stripe";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2025-07-30.basil" as any,
-});
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error("STRIPE_SECRET_KEY is not set");
+  }
+  return new Stripe(key, {
+    apiVersion: "2025-07-30.basil" as any,
+  });
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -18,6 +24,7 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
   try {
+    const stripe = getStripe();
     event = stripe.webhooks.constructEvent(
       body,
       sig,
@@ -37,10 +44,13 @@ export async function POST(req: NextRequest) {
       }
 
       const sessionId = session.id;
+      const pendingSnap = await adminDb
+        .collection("pending_payments")
+        .doc(sessionId)
+        .get();
+
       const userId =
-        session.metadata?.userId ||
-        (await adminDb.collection("pending_payments").doc(sessionId).get())
-          .data()?.userId;
+        session.metadata?.userId || pendingSnap.data()?.userId;
 
       const amountUSD = Number(
         session.metadata?.amountUSD ||
@@ -56,8 +66,8 @@ export async function POST(req: NextRequest) {
       const userRef = adminDb.collection("users").doc(userId);
 
       await adminDb.runTransaction(async (tx) => {
-        const pendingSnap = await tx.get(pendingRef);
-        if (pendingSnap.exists && pendingSnap.data()?.status === "completed") {
+        const pending = await tx.get(pendingRef);
+        if (pending.exists && pending.data()?.status === "completed") {
           return;
         }
 

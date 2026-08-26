@@ -3,9 +3,15 @@ import Stripe from "stripe";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2025-07-30.basil" as any,
-});
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error("STRIPE_SECRET_KEY is not set");
+  }
+  return new Stripe(key, {
+    apiVersion: "2025-07-30.basil" as any,
+  });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,6 +33,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const stripe = getStripe();
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL || "https://www.morefollowers.shop";
 
