@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +28,6 @@ const CRYPTO_OPTIONS = [
 export default function AddFundsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [method, setMethod] = useState<"stripe" | "paypal" | "crypto" | "mpesa">(
     "stripe"
@@ -81,13 +80,14 @@ export default function AddFundsPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Handle return from Stripe / PayPal / Crypto
+  // Read return URLs in the browser only (avoids useSearchParams build error)
   useEffect(() => {
-    if (!user) return;
+    if (!user || typeof window === "undefined") return;
 
-    const stripe = searchParams.get("stripe");
-    const paypal = searchParams.get("paypal");
-    const crypto = searchParams.get("crypto");
+    const params = new URLSearchParams(window.location.search);
+    const stripe = params.get("stripe");
+    const paypal = params.get("paypal");
+    const cryptoStatus = params.get("crypto");
 
     if (stripe === "success") {
       setMessage(
@@ -105,25 +105,24 @@ export default function AddFundsPage() {
       setMethod("paypal");
     }
 
-    if (crypto === "success") {
+    if (cryptoStatus === "success") {
       setMessage(
         "Crypto payment submitted. Balance updates after network confirmation."
       );
       setMethod("crypto");
     }
-    if (crypto === "cancel") {
+    if (cryptoStatus === "cancel") {
       setMessage("Crypto payment was cancelled.");
       setMethod("crypto");
     }
 
-    // Capture PayPal on return (token is order ID in some flows; PayPal returns token)
     if (paypal === "success" && !paypalHandled.current) {
       paypalHandled.current = true;
       setMethod("paypal");
       setConfirming(true);
       setMessage("Confirming PayPal payment…");
 
-      const token = searchParams.get("token"); // PayPal order ID
+      const token = params.get("token");
       if (token) {
         fetch("/api/payments/paypal/capture-order", {
           method: "POST",
@@ -144,15 +143,19 @@ export default function AddFundsPage() {
             }
           })
           .catch(() => {
-            setMessage("Could not confirm PayPal payment. Check balance shortly.");
+            setMessage(
+              "Could not confirm PayPal payment. Check balance shortly."
+            );
           })
           .finally(() => setConfirming(false));
       } else {
-        setMessage("PayPal returned without order id. Check your balance shortly.");
+        setMessage(
+          "PayPal returned without order id. Check your balance shortly."
+        );
         setConfirming(false);
       }
     }
-  }, [searchParams, user]);
+  }, [user]);
 
   if (loading || !user) {
     return (
@@ -210,7 +213,6 @@ export default function AddFundsPage() {
     setConfirming(false);
 
     try {
-      // ===== STRIPE =====
       if (method === "stripe") {
         const res = await fetch("/api/payments/stripe/create-checkout", {
           method: "POST",
@@ -228,7 +230,6 @@ export default function AddFundsPage() {
         setMessage(data.error || "Could not start card payment");
       }
 
-      // ===== PAYPAL =====
       if (method === "paypal") {
         const res = await fetch("/api/payments/paypal/create-order", {
           method: "POST",
@@ -246,7 +247,6 @@ export default function AddFundsPage() {
         setMessage(data.error || "Could not start PayPal payment");
       }
 
-      // ===== CRYPTO =====
       if (method === "crypto") {
         const res = await fetch("/api/payments/crypto/create-payment", {
           method: "POST",
@@ -265,7 +265,6 @@ export default function AddFundsPage() {
         setMessage(data.error || "Could not start crypto payment");
       }
 
-      // ===== M-PESA =====
       if (method === "mpesa") {
         const res = await fetch("/api/payments/mpesa", {
           method: "POST",
@@ -582,7 +581,9 @@ export default function AddFundsPage() {
       {method === "crypto" && (
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <label className="text-sm font-medium">Preferred coin (optional)</label>
+            <label className="text-sm font-medium">
+              Preferred coin (optional)
+            </label>
             <select
               className="mt-2 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
               value={cryptoCoin}
