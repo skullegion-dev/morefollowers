@@ -23,7 +23,6 @@ export default function DashboardPage() {
     }
   }, [user, loading, router]);
 
-  // Load + live-update wallet balance from Firestore users/{uid}.balance
   useEffect(() => {
     if (!user) {
       setBalance(0);
@@ -46,7 +45,6 @@ export default function DashboardPage() {
       },
       (err) => {
         console.error("Balance listen error:", err);
-        // Fallback one-time read
         getDoc(userRef)
           .then((snap) => {
             if (snap.exists()) {
@@ -91,7 +89,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        {/* Wallet Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -119,7 +116,6 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
 
-        {/* Place Order */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -128,13 +124,15 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" disabled>
-              Coming soon
+            <Button
+              className="w-full"
+              onClick={() => router.push("/dashboard/services")}
+            >
+              Browse services
             </Button>
           </CardContent>
         </Card>
 
-        {/* Order History */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
