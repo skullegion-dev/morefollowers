@@ -28,6 +28,10 @@ export function applyMarkup(costRate: number): number {
   return Number((costRate * (1 + markup / 100)).toFixed(4));
 }
 
+export function calcSellTotal(sellRatePer1000: number, quantity: number): number {
+  return Number(((sellRatePer1000 * quantity) / 1000).toFixed(4));
+}
+
 export async function peakerrRequest(params: Record<string, string>) {
   const key = process.env.PEAKERR_API_KEY;
   if (!key) {
@@ -51,7 +55,7 @@ export async function fetchPeakerrServices(): Promise<CatalogService[]> {
   const data = await peakerrRequest({ action: "services" });
 
   if (!Array.isArray(data)) {
-    throw new Error(data?.error || "Peakerr did not return a service list");
+    throw new Error(data?.error || "Could not load service list");
   }
 
   return data.map((s: PeakerrService) => {
@@ -65,16 +69,23 @@ export async function fetchPeakerrServices(): Promise<CatalogService[]> {
   });
 }
 
-export async function fetchPeakerrBalance(): Promise<{
-  balance: string;
-  currency: string;
-}> {
-  const data = await peakerrRequest({ action: "balance" });
-  if (data?.error) {
-    throw new Error(data.error);
+export async function addPeakerrOrder(params: {
+  serviceId: number;
+  link: string;
+  quantity: number;
+}) {
+  const data = await peakerrRequest({
+    action: "add",
+    service: String(params.serviceId),
+    link: params.link,
+    quantity: String(params.quantity),
+  });
+
+  if (data?.error || !data?.order) {
+    throw new Error(data?.error || "Provider rejected the order");
   }
+
   return {
-    balance: String(data.balance ?? "0"),
-    currency: String(data.currency ?? "USD"),
+    providerOrderId: String(data.order),
   };
 }

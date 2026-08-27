@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Search } from "lucide-react";
 import { formatUSD } from "@/lib/currency";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 type ServiceItem = {
   id: number;
@@ -32,10 +34,25 @@ export default function ServicesPage() {
   const [category, setCategory] = useState("All");
   const [error, setError] = useState("");
   const [fetching, setFetching] = useState(true);
+  const [balance, setBalance] = useState(0);
+
+  const [selected, setSelected] = useState<ServiceItem | null>(null);
+  const [link, setLink] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [ordering, setOrdering] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
+      setBalance(snap.exists() ? Number(snap.data().balance || 0) : 0);
+    });
+    return () => unsub();
+  }, [user]);
 
   useEffect(() => {
     const load = async () => {
@@ -63,10 +80,62 @@ export default function ServicesPage() {
     return services.filter((s) => {
       const catOk = category === "All" || s.category === category;
       const text = `${s.name} ${s.category} ${s.type}`.toLowerCase();
-      const searchOk = !q || text.includes(q);
-      return catOk && searchOk;
+      return catOk && (!q || text.includes(q));
     });
   }, [services, search, category]);
+
+  const qtyNum = Number(quantity) || 0;
+  const orderTotal =
+    selected && qtyNum > 0
+      ? Number(((selected.rate * qtyNum) / 1000).toFixed(4))
+      : 0;
+
+  const handleOrder = async () => {
+    if (!user || !selected) return;
+    setMessage("");
+
+    if (!link.trim()) {
+      setMessage("Enter the profile or post link");
+      return;
+    }
+    if (qtyNum < selected.min || qtyNum > selected.max) {
+      setMessage(`Quantity must be between ${selected.min} and ${selected.max}`);
+      return;
+    }
+    if (balance < orderTotal) {
+      setMessage("Insufficient wallet balance. Add funds first.");
+      return;
+    }
+
+    setOrdering(true);
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.uid,
+          serviceId: selected.id,
+          link: link.trim(),
+          quantity: qtyNum,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setMessage(data.error || "Could not place order");
+        return;
+      }
+      setMessage(
+        `Order placed. ${formatUSD(data.chargeUSD)} deducted from your wallet.`
+      );
+      setLink("");
+      setQuantity("");
+      setSelected(null);
+    } catch {
+      setMessage("Could not place order");
+    } finally {
+      setOrdering(false);
+    }
+  };
 
   if (loading || !user) {
     return (
@@ -87,10 +156,17 @@ export default function ServicesPage() {
         Back to Dashboard
       </Button>
 
-      <h1 className="text-3xl font-bold mb-2">Services</h1>
-      <p className="text-muted-foreground mb-6">
-        Choose a service. Ordering from wallet comes next.
-      </p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Services</h1>
+          <p className="text-muted-foreground">
+            Choose a service and pay from your wallet.
+          </p>
+        </div>
+        <p className="text-sm font-medium">
+          Wallet: <span className="text-emerald-600">{formatUSD(balance)}</span>
+        </p>
+      </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
@@ -122,12 +198,83 @@ export default function ServicesPage() {
         </div>
       )}
 
+      {selected && (
+        <Card className="mb-6 border-primary">
+          <CardHeader>
+            <CardTitle className="text-lg">{selected.name}</CardTitle>
+            <p className="text-sm text-muted-foreground">{selected.category}</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Link</label>
+              <Input
+                className="mt-2"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Example: https://instagram.com/username
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Quantity</label>
+              <Input
+                className="mt-2"
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                min={selected.min}
+                max={selected.max}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Min {selected.min.toLocaleString()} · Max{" "}
+                {selected.max.toLocaleString()}
+              </p>
+            </div>
+            <p className="text-sm">
+              You will pay: <strong>{formatUSD(orderTotal)}</strong>
+            </p>
+            {message && (
+              <p
+                className={`text-sm ${
+                  message.toLowerCase().includes("placed")
+                    ? "text-emerald-600"
+                    : "text-red-600"
+                }`}
+              >
+                {message}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <Button
+                className="flex-1"
+                onClick={handleOrder}
+                disabled={ordering}
+              >
+                {ordering ? "Placing order…" : "Pay from wallet"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelected(null);
+                  setMessage("");
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {fetching ? (
-        <p className="text-muted-foreground">Loading services from Peakerr…</p>
+        <p className="text-muted-foreground">Loading services…</p>
       ) : (
         <>
           <p className="text-sm text-muted-foreground mb-4">
-            Showing {filtered.length} of {services.length} services
+            Showing {Math.min(filtered.length, 200)} of {services.length}{" "}
+            services
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filtered.slice(0, 200).map((s) => (
@@ -146,18 +293,18 @@ export default function ServicesPage() {
                     Min {s.min.toLocaleString()} · Max {s.max.toLocaleString()}
                     {s.refill ? " · Refill" : ""}
                   </p>
-                  <Button className="w-full mt-2" disabled>
-                    Order coming next
+                  <Button className="w-full mt-2" onClick={() => {
+                    setSelected(s);
+                    setQuantity(String(s.min));
+                    setMessage("");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}>
+                    Select
                   </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
-          {filtered.length > 200 && (
-            <p className="text-sm text-muted-foreground mt-4">
-              Showing first 200 matches. Use search to narrow results.
-            </p>
-          )}
         </>
       )}
     </div>
