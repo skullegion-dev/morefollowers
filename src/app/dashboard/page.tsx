@@ -8,14 +8,34 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Wallet, ShoppingCart, History, LogOut } from "lucide-react";
 import { formatUSD } from "@/lib/currency";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
+
+type OrderItem = {
+  id: string;
+  serviceName?: string;
+  link?: string;
+  quantity?: number;
+  chargeUSD?: number;
+  status?: string;
+  providerOrderId?: string;
+  createdAt?: { seconds?: number } | null;
+};
 
 export default function DashboardPage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [balance, setBalance] = useState<number>(0);
   const [balanceLoading, setBalanceLoading] = useState(true);
+  const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [ordersError, setOrdersError] = useState("");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -36,8 +56,7 @@ export default function DashboardPage() {
       userRef,
       (snap) => {
         if (snap.exists()) {
-          const data = snap.data();
-          setBalance(Number(data.balance || 0));
+          setBalance(Number(snap.data().balance || 0));
         } else {
           setBalance(0);
         }
@@ -52,6 +71,51 @@ export default function DashboardPage() {
             }
           })
           .finally(() => setBalanceLoading(false));
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "orders"),
+      where("userId", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        const items: OrderItem[] = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            serviceName: data.serviceName,
+            link: data.link,
+            quantity: data.quantity,
+            chargeUSD: data.chargeUSD,
+            status: data.status,
+            providerOrderId: data.providerOrderId,
+            createdAt: data.createdAt || null,
+          };
+        });
+
+        items.sort((a, b) => {
+          const aSec = a.createdAt?.seconds || 0;
+          const bSec = b.createdAt?.seconds || 0;
+          return bSec - aSec;
+        });
+
+        setOrders(items);
+        setOrdersError("");
+      },
+      (err) => {
+        console.error("Orders listen error:", err);
+        setOrdersError(
+          "Could not load order history. Check Firestore rules for the orders collection."
+        );
       }
     );
 
@@ -141,10 +205,53 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">No orders yet</p>
+            <p className="text-sm text-muted-foreground">
+              {orders.length} order{orders.length === 1 ? "" : "s"}
+            </p>
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent orders</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {ordersError && (
+            <p className="text-sm text-red-600 mb-4">{ordersError}</p>
+          )}
+
+          {orders.length === 0 && !ordersError ? (
+            <p className="text-sm text-muted-foreground">No orders yet</p>
+          ) : (
+            <div className="space-y-3">
+              {orders.map((order) => (
+                <div
+                  key={order.id}
+                  className="border rounded-lg p-4 text-sm space-y-1"
+                >
+                  <div className="flex justify-between gap-3">
+                    <p className="font-medium">{order.serviceName || "Service"}</p>
+                    <p className="capitalize">{order.status || "unknown"}</p>
+                  </div>
+                  <p className="text-muted-foreground break-all">
+                    {order.link}
+                  </p>
+                  <p>
+                    Qty {Number(order.quantity || 0).toLocaleString()} ·{" "}
+                    {formatUSD(Number(order.chargeUSD || 0))}
+                  </p>
+                  {order.providerOrderId && (
+                    <p className="text-xs text-muted-foreground">
+                      Provider ID: {order.providerOrderId}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
