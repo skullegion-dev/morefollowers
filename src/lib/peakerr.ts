@@ -89,3 +89,22 @@ export async function addPeakerrOrder(params: {
     providerOrderId: String(data.order),
   };
 }
+
+export async function fetchPeakerrOrderStatus(providerOrderId: string) {
+  const data = await peakerrRequest({
+    action: "status",
+    order: providerOrderId,
+  });
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  return {
+    status: String(data.status || "Unknown"),
+    charge: data.charge != null ? Number(data.charge) : null,
+    startCount: data.start_count != null ? Number(data.start_count) : null,
+    remains: data.remains != null ? Number(data.remains) : null,
+    currency: data.currency ? String(data.currency) : "USD",
+  };
+}

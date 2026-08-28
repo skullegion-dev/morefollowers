@@ -26,6 +26,8 @@ type OrderItem = {
   chargeUSD?: number;
   status?: string;
   providerOrderId?: string;
+  startCount?: number | null;
+  remains?: number | null;
   createdAt?: { seconds?: number } | null;
 };
 
@@ -36,6 +38,7 @@ export default function DashboardPage() {
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [ordersError, setOrdersError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -80,10 +83,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
 
-    const q = query(
-      collection(db, "orders"),
-      where("userId", "==", user.uid)
-    );
+    const q = query(collection(db, "orders"), where("userId", "==", user.uid));
 
     const unsubscribe = onSnapshot(
       q,
@@ -98,6 +98,8 @@ export default function DashboardPage() {
             chargeUSD: data.chargeUSD,
             status: data.status,
             providerOrderId: data.providerOrderId,
+            startCount: data.startCount ?? null,
+            remains: data.remains ?? null,
             createdAt: data.createdAt || null,
           };
         });
@@ -120,6 +122,30 @@ export default function DashboardPage() {
     );
 
     return () => unsubscribe();
+  }, [user]);
+
+  const refreshStatuses = async () => {
+    if (!user) return;
+    setRefreshing(true);
+    try {
+      await fetch("/api/orders/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid }),
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    refreshStatuses();
+    const timer = setInterval(refreshStatuses, 30000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   if (loading) {
@@ -205,9 +231,17 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mb-3">
               {orders.length} order{orders.length === 1 ? "" : "s"}
             </p>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={refreshStatuses}
+              disabled={refreshing}
+            >
+              {refreshing ? "Refreshing…" : "Refresh status"}
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -241,6 +275,12 @@ export default function DashboardPage() {
                     Qty {Number(order.quantity || 0).toLocaleString()} ·{" "}
                     {formatUSD(Number(order.chargeUSD || 0))}
                   </p>
+                  {(order.startCount != null || order.remains != null) && (
+                    <p className="text-xs text-muted-foreground">
+                      Start count: {order.startCount ?? "—"} · Remaining:{" "}
+                      {order.remains ?? "—"}
+                    </p>
+                  )}
                   {order.providerOrderId && (
                     <p className="text-xs text-muted-foreground">
                       Provider ID: {order.providerOrderId}
