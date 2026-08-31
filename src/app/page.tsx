@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import Script from "next/script";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +20,62 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
+
+function AdsterraBanner({
+  adKey,
+  width,
+  height,
+}: {
+  adKey: string;
+  width: number;
+  height: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.innerHTML = "";
+    const conf = document.createElement("script");
+    conf.type = "text/javascript";
+    conf.text = `atOptions = {
+      'key': '${adKey}',
+      'format': 'iframe',
+      'height': ${height},
+      'width': ${width},
+      'params': {}
+    };`;
+    const inv = document.createElement("script");
+    inv.type = "text/javascript";
+    inv.src = `https://www.highperformanceformat.com/${adKey}/invoke.js`;
+    el.appendChild(conf);
+    el.appendChild(inv);
+    return () => {
+      el.innerHTML = "";
+    };
+  }, [adKey, width, height]);
+
+  return (
+    <div
+      ref={ref}
+      className="mx-auto flex justify-center overflow-hidden"
+      style={{ maxWidth: width, minHeight: height }}
+    />
+  );
+}
+
+function AdsterraNative() {
+  return (
+    <div className="w-full overflow-hidden">
+      <Script
+        id="adsterra-native-home"
+        src="https://pl31106143.profitableratecpmnetwork.com/f07c1e4d8ad63a084bee8db0083b70ce/invoke.js"
+        strategy="lazyOnload"
+      />
+      <div id="container-f07c1e4d8ad63a084bee8db0083b70ce" />
+    </div>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -69,7 +127,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-12"
+            className="flex flex-col sm:flex-row gap-4 justify-center mb-8"
           >
             <Link href="/login">
               <Button size="lg" className="rounded-full px-8 h-12 text-base">
@@ -87,6 +145,14 @@ export default function HomePage() {
               </Button>
             </Link>
           </motion.div>
+
+          <div className="mb-12 flex justify-center">
+            <AdsterraBanner
+              adKey="e1854487361d2da88beb79134ab86ea5"
+              width={468}
+              height={60}
+            />
+          </div>
 
           {/* Payment methods */}
           <motion.div
@@ -156,32 +222,48 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                icon: <Zap className="h-7 w-7 text-blue-500" />,
-                title: "Lightning Fast",
-                desc: "Most orders start within minutes.",
-              },
-              {
-                icon: <Shield className="h-7 w-7 text-green-500" />,
-                title: "100% Safe",
-                desc: "We never ask for your password.",
-              },
-              {
-                icon: <CreditCard className="h-7 w-7 text-purple-500" />,
-                title: "Easy Payments",
-                desc: "M-Pesa, Cards, PayPal & Crypto.",
-              },
-            ].map((item) => (
-              <Card key={item.title} className="border shadow-sm">
-                <CardContent className="p-6 text-center">
-                  <div className="mb-4 flex justify-center">{item.icon}</div>
-                  <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
-                  <p className="text-muted-foreground text-sm">{item.desc}</p>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-6 items-start">
+            <div className="hidden md:flex justify-center">
+              <AdsterraBanner
+                adKey="89a765191eb4af79fd93cb49ed78e316"
+                width={160}
+                height={300}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                {
+                  icon: <Zap className="h-7 w-7 text-blue-500" />,
+                  title: "Lightning Fast",
+                  desc: "Most orders start within minutes.",
+                },
+                {
+                  icon: <Shield className="h-7 w-7 text-green-500" />,
+                  title: "100% Safe",
+                  desc: "We never ask for your password.",
+                },
+                {
+                  icon: <CreditCard className="h-7 w-7 text-purple-500" />,
+                  title: "Easy Payments",
+                  desc: "M-Pesa, Cards, PayPal & Crypto.",
+                },
+              ].map((item) => (
+                <Card key={item.title} className="border shadow-sm">
+                  <CardContent className="p-6 text-center">
+                    <div className="mb-4 flex justify-center">{item.icon}</div>
+                    <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
+                    <p className="text-muted-foreground text-sm">{item.desc}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+          <div className="mt-8 flex justify-center md:hidden">
+            <AdsterraBanner
+              adKey="89a765191eb4af79fd93cb49ed78e316"
+              width={160}
+              height={300}
+            />
           </div>
         </div>
       </section>
@@ -232,6 +314,9 @@ export default function HomePage() {
               Create Free Account
             </Button>
           </Link>
+          <div className="mt-10">
+            <AdsterraNative />
+          </div>
         </div>
       </section>
     </div>

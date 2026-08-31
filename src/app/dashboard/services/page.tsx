@@ -10,6 +10,7 @@ import { ArrowLeft, Search } from "lucide-react";
 import { formatUSD } from "@/lib/currency";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { LeaderboardAd, NativeAd, SkyscraperAd } from "@/components/ads/AdSlots";
 
 type ServiceItem = {
   id: number;
@@ -264,8 +265,17 @@ export default function ServicesPage() {
                 Cancel
               </Button>
             </div>
+            <div className="pt-2 flex justify-center overflow-x-auto">
+              <LeaderboardAd />
+            </div>
           </CardContent>
         </Card>
+      )}
+
+      {!selected && (
+        <div className="mb-6 flex justify-center overflow-x-auto">
+          <LeaderboardAd />
+        </div>
       )}
 
       {fetching ? (
@@ -276,34 +286,42 @@ export default function ServicesPage() {
             Showing {Math.min(filtered.length, 200)} of {services.length}{" "}
             services
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filtered.slice(0, 200).map((s) => (
-              <Card key={s.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base leading-snug">
-                    {s.name}
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground">{s.category}</p>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <p>
-                    Price: <strong>{formatUSD(s.rate)}</strong> / 1,000
-                  </p>
-                  <p className="text-muted-foreground">
-                    Min {s.min.toLocaleString()} · Max {s.max.toLocaleString()}
-                    {s.refill ? " · Refill" : ""}
-                  </p>
-                  <Button className="w-full mt-2" onClick={() => {
-                    setSelected(s);
-                    setQuantity(String(s.min));
-                    setMessage("");
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}>
-                    Select
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_160px] gap-4 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filtered.slice(0, 200).map((s) => (
+                <Card key={s.id}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base leading-snug">
+                      {s.name}
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">{s.category}</p>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <p>
+                      Price: <strong>{formatUSD(s.rate)}</strong> / 1,000
+                    </p>
+                    <p className="text-muted-foreground">
+                      Min {s.min.toLocaleString()} · Max {s.max.toLocaleString()}
+                      {s.refill ? " · Refill" : ""}
+                    </p>
+                    <Button className="w-full mt-2" onClick={() => {
+                      setSelected(s);
+                      setQuantity(String(s.min));
+                      setMessage("");
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}>
+                      Select
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <div className="flex justify-center">
+              <SkyscraperAd />
+            </div>
+          </div>
+          <div className="mt-8">
+            <NativeAd />
           </div>
         </>
       )}

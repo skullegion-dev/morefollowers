@@ -1,3 +1,5 @@
+import { LeaderboardAd, NativeAd, SkyscraperAd } from "@/components/ads/AdSlots";
+
 export default function PrivacyPage() {
   return (
     <div className="container mx-auto px-4 py-16 max-w-3xl">
@@ -17,6 +19,15 @@ export default function PrivacyPage() {
         <p>
           By using the site you consent to this privacy policy.
         </p>
+      </div>
+      <div className="mt-10 flex justify-center overflow-x-auto">
+        <LeaderboardAd />
+      </div>
+      <div className="mt-6 flex justify-center">
+        <SkyscraperAd />
+      </div>
+      <div className="mt-6">
+        <NativeAd />
       </div>
     </div>
   );

@@ -2,7 +2,8 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import {
   signInWithEmailAndPassword,
@@ -17,6 +18,62 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
+
+function AdsterraBanner({
+  adKey,
+  width,
+  height,
+}: {
+  adKey: string;
+  width: number;
+  height: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.innerHTML = "";
+    const conf = document.createElement("script");
+    conf.type = "text/javascript";
+    conf.text = `atOptions = {
+      'key': '${adKey}',
+      'format': 'iframe',
+      'height': ${height},
+      'width': ${width},
+      'params': {}
+    };`;
+    const inv = document.createElement("script");
+    inv.type = "text/javascript";
+    inv.src = `https://www.highperformanceformat.com/${adKey}/invoke.js`;
+    el.appendChild(conf);
+    el.appendChild(inv);
+    return () => {
+      el.innerHTML = "";
+    };
+  }, [adKey, width, height]);
+
+  return (
+    <div
+      ref={ref}
+      className="mx-auto flex justify-center overflow-hidden"
+      style={{ maxWidth: width, minHeight: height }}
+    />
+  );
+}
+
+function AdsterraNative() {
+  return (
+    <div className="w-full overflow-hidden">
+      <Script
+        id="adsterra-native-login"
+        src="https://pl31106143.profitableratecpmnetwork.com/f07c1e4d8ad63a084bee8db0083b70ce/invoke.js"
+        strategy="lazyOnload"
+      />
+      <div id="container-f07c1e4d8ad63a084bee8db0083b70ce" />
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -189,6 +246,14 @@ export default function LoginPage() {
               </Button>
             </form>
 
+            <div className="pt-2 flex justify-center overflow-x-auto">
+              <AdsterraBanner
+                adKey="e1854487361d2da88beb79134ab86ea5"
+                width={468}
+                height={60}
+              />
+            </div>
+
             <p className="text-center text-sm text-muted-foreground mt-6">
               {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
               <button
@@ -205,6 +270,17 @@ export default function LoginPage() {
             </p>
           </CardContent>
         </Card>
+
+        <div className="mt-8 flex justify-center">
+          <AdsterraBanner
+            adKey="89a765191eb4af79fd93cb49ed78e316"
+            width={160}
+            height={300}
+          />
+        </div>
+        <div className="mt-6">
+          <AdsterraNative />
+        </div>
       </motion.div>
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { LeaderboardAd, NativeAd, SkyscraperAd } from "@/components/ads/AdSlots";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -178,7 +179,7 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -246,52 +247,65 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent orders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {ordersError && (
-            <p className="text-sm text-red-600 mb-4">{ordersError}</p>
-          )}
+      <div className="mb-10 flex justify-center overflow-x-auto">
+        <LeaderboardAd />
+      </div>
 
-          {orders.length === 0 && !ordersError ? (
-            <p className="text-sm text-muted-foreground">No orders yet</p>
-          ) : (
-            <div className="space-y-3">
-              {orders.map((order) => (
-                <div
-                  key={order.id}
-                  className="border rounded-lg p-4 text-sm space-y-1"
-                >
-                  <div className="flex justify-between gap-3">
-                    <p className="font-medium">{order.serviceName || "Service"}</p>
-                    <p className="capitalize">{order.status || "unknown"}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_160px] gap-6 items-start">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent orders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {ordersError && (
+              <p className="text-sm text-red-600 mb-4">{ordersError}</p>
+            )}
+
+            {orders.length === 0 && !ordersError ? (
+              <p className="text-sm text-muted-foreground">No orders yet</p>
+            ) : (
+              <div className="space-y-3">
+                {orders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="border rounded-lg p-4 text-sm space-y-1"
+                  >
+                    <div className="flex justify-between gap-3">
+                      <p className="font-medium">{order.serviceName || "Service"}</p>
+                      <p className="capitalize">{order.status || "unknown"}</p>
+                    </div>
+                    <p className="text-muted-foreground break-all">
+                      {order.link}
+                    </p>
+                    <p>
+                      Qty {Number(order.quantity || 0).toLocaleString()} ·{" "}
+                      {formatUSD(Number(order.chargeUSD || 0))}
+                    </p>
+                    {(order.startCount != null || order.remains != null) && (
+                      <p className="text-xs text-muted-foreground">
+                        Start count: {order.startCount ?? "—"} · Remaining:{" "}
+                        {order.remains ?? "—"}
+                      </p>
+                    )}
+                    {order.providerOrderId && (
+                      <p className="text-xs text-muted-foreground">
+                        Provider ID: {order.providerOrderId}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-muted-foreground break-all">
-                    {order.link}
-                  </p>
-                  <p>
-                    Qty {Number(order.quantity || 0).toLocaleString()} ·{" "}
-                    {formatUSD(Number(order.chargeUSD || 0))}
-                  </p>
-                  {(order.startCount != null || order.remains != null) && (
-                    <p className="text-xs text-muted-foreground">
-                      Start count: {order.startCount ?? "—"} · Remaining:{" "}
-                      {order.remains ?? "—"}
-                    </p>
-                  )}
-                  {order.providerOrderId && (
-                    <p className="text-xs text-muted-foreground">
-                      Provider ID: {order.providerOrderId}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <div className="flex justify-center">
+          <SkyscraperAd />
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <NativeAd />
+      </div>
     </div>
   );
 }

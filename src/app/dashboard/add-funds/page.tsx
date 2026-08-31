@@ -11,6 +11,7 @@ import { ArrowLeft, CreditCard, Bitcoin, Wallet } from "lucide-react";
 import Image from "next/image";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { LeaderboardAd, NativeAd, SkyscraperAd } from "@/components/ads/AdSlots";
 
 const PRESET_USD = [5, 10, 20, 50, 100, 200];
 const PRESET_KES = [50, 100, 200, 300, 500, 1000];
@@ -641,6 +642,16 @@ export default function AddFundsPage() {
       >
         {getButtonText()}
       </Button>
+
+      <div className="mt-8 flex justify-center overflow-x-auto">
+        <LeaderboardAd />
+      </div>
+      <div className="mt-6 flex justify-center">
+        <SkyscraperAd />
+      </div>
+      <div className="mt-6">
+        <NativeAd />
+      </div>
     </div>
   );
 }
